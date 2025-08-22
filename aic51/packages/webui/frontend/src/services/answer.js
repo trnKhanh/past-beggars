@@ -1,13 +1,5 @@
 import localforage from "localforage";
 
-export function processAnswer(answer) {
-  if ("time" in answer) answer.time = parseFloat(answer.time);
-  if ("frame_counter" in answer)
-    answer.frame_counter = parseFloat(answer.frame_counter);
-  if ("correct" in answer) answer.correct = parseInt(answer.correct);
-  return answer;
-}
-
 export async function getAnswers() {
   const answers = await localforage.getItem("answers");
   let res = null;
@@ -29,27 +21,17 @@ export async function getAnswersByIds(ids) {
 
 export async function addAnswer(answer) {
   const answers = await getAnswers();
-  processAnswer(answer);
-  let id = parseInt((await localforage.getItem("id_ptr")) || 0);
-  await localforage.setItem("answers", [
-    ...answers,
-    { id: id, submitted: new Date().toLocaleString(), ...answer },
-  ]);
+  let id = (await localforage.getItem("id_ptr")) || 0;
+  await localforage.setItem("answers", [...answers, { id: id, ...answer }]);
   const res = await localforage.getItem("answers");
   await localforage.setItem("id_ptr", id + 1);
   return res;
 }
 export async function updateAnswer(id, new_answer) {
   const answers = await getAnswers();
-  processAnswer(new_answer);
   const updatedAnswer = answers.map((answer) => {
     if (answer.id === parseInt(id)) {
-      return {
-        id: parseInt(id),
-        submitted: answer.submitted,
-        frame_id: answer.frame_id,
-        ...new_answer,
-      };
+      return { id: parseInt(id), ...new_answer };
     } else {
       return answer;
     }
@@ -61,9 +43,7 @@ export async function updateAnswer(id, new_answer) {
 
 export async function deleteAnswer(id) {
   const answers = await getAnswers();
-  const newAnswers = answers.filter(
-    (answer) => parseInt(answer.id) !== parseInt(id),
-  );
+  const newAnswers = answers.filter((answer) => answer.id !== parseInt(id));
   await localforage.setItem("answers", newAnswers);
   const res = await localforage.getItem("answers");
   return res;

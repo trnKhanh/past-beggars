@@ -10,7 +10,6 @@ from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn, TextColumn
 
 from .command import BaseCommand
 from ...packages.analyse.features import CLIP, TrOCR
-from ...packages.analyse.objects import Yolo
 from ...config import GlobalConfig
 
 
@@ -61,12 +60,6 @@ class AnalyseCommand(BaseCommand):
                 model = TrOCR()
                 self._logger.info(
                     f"Start extracting features using {model_name} (easyOCR)"
-                )
-            elif model_name == "yolo":
-                pretrained_model = model_info["pretrained_model"]
-                model = Yolo(pretrained_model)
-                self._logger.info(
-                    f"Start extracting features using {model_name} ({pretrained_model})"
                 )
             else:
                 self._logger.error(f"{model_name}: model is not available")

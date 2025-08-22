@@ -1,5 +1,4 @@
 import logging
-import time
 import re
 import hashlib
 import subprocess
@@ -48,10 +47,6 @@ class MilvusDatabase(object):
                 for field in fields:
                     if "datatype" in field:
                         field["datatype"] = self.DATATYPE_MAP[field["datatype"]]
-                    if "element_type" in field:
-                        field["element_type"] = self.DATATYPE_MAP[
-                            field["element_type"]
-                        ]
 
                     schema.add_field(**field)
 
@@ -94,21 +89,16 @@ class MilvusDatabase(object):
         filter="",
         offset=0,
         limit=50,
-        ef=32,
         nprobe=8,
         feature="clip",
     ):
         limit = min(limit, self.SEARCH_LIMIT)
         search_params = {
-            "metric_type": "IP",
+            "metric_type": "COSINE",
             "params": {
                 "nprobe": nprobe,
-                # "ef": ef,
             },
         }
-        self._logger.debug(f"Search_params: {search_params}")
-        start_time = time.time()
-
         res = self._client.search(
             self._collection_name,
             data=query,
@@ -118,10 +108,6 @@ class MilvusDatabase(object):
             limit=limit,
             search_params=search_params,
             output_fields=["*"],
-        )
-        finish_time = time.time()
-        self._logger.debug(
-            f"Takes {finish_time-start_time:.4f} seconds to search"
         )
         return res
 

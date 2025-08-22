@@ -1,35 +1,28 @@
-import { useLoaderData, useNavigation } from "react-router-dom";
-import { useState, useContext } from "react";
+import { useLoaderData } from "react-router-dom";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 
 import VideoProvider, { usePlayVideo } from "../components/VideoPlayer.jsx";
-import AuthProvider from "../components/AuthProvider.jsx";
+
 import AnswerSidebar from "../components/Answer.jsx";
-import { getAvailableModels, getObjectClasses } from "../services/search.js";
+import { getAvailableModels } from "../services/search.js";
 
 export async function loader() {
-  const models_data = await getAvailableModels();
-  const objects_data = await getObjectClasses();
-  return {
-    modelOptions: models_data["models"],
-    objectOptions: objects_data["objects"],
-  };
+  const data = await getAvailableModels();
+  return { modelOptions: data["models"] };
 }
 export default function Root() {
-  const navigation = useNavigation();
-  const { modelOptions, objectOptions } = useLoaderData();
+  const { modelOptions } = useLoaderData();
   return (
-    <AuthProvider>
-      <VideoProvider>
-        <div className="flex flex-row">
-          <div>
-            <div className="w-96">
-              <AnswerSidebar />
-            </div>
+    <VideoProvider>
+      <div className="flex flex-row">
+        <div>
+          <div className="w-96">
+            <AnswerSidebar />
           </div>
-          <Outlet context={{ modelOptions, objectOptions }} />
         </div>
-      </VideoProvider>
-    </AuthProvider>
+        <Outlet context={{ modelOptions }} />
+      </div>
+    </VideoProvider>
   );
 }
