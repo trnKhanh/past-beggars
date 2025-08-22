@@ -12,6 +12,7 @@ import { search } from "../services/search.js";
 import { FrameItem, FrameContainer } from "../components/Frame.jsx";
 import { usePlayVideo } from "../components/VideoPlayer.jsx";
 import { Dropdown, Editable } from "../components/Filter.jsx";
+import { AdvanceQueryContainer } from "../components/AdvanceQuery.jsx";
 import PreviousButton from "../assets/previous-btn.svg";
 import NextButton from "../assets/next-btn.svg";
 import HomeButton from "../assets/home-btn.svg";
@@ -20,10 +21,12 @@ import SpinIcon from "../assets/spin.svg";
 import {
   nlist,
   limitOptions,
+  ef_default,
   nprobeOption,
   temporal_k_default,
   ocr_weight_default,
   ocr_threshold_default,
+  object_weight_default,
   max_interval_default,
 } from "../resources/options.js";
 
@@ -35,23 +38,28 @@ export async function loader({ request }) {
   const _offset = searchParams.get("offset") || 0;
   const selected = searchParams.get("selected") || undefined;
   const limit = searchParams.get("limit") || limitOptions[0];
+  const ef = searchParams.get("ef") || ef_default;
   const nprobe = searchParams.get("nprobe") || nprobeOption[0];
   const model = searchParams.get("model") || undefined;
   const temporal_k = searchParams.get("temporal_k") || temporal_k_default;
   const ocr_weight = searchParams.get("ocr_weight") || ocr_weight_default;
   const ocr_threshold =
     searchParams.get("ocr_threshold") || ocr_threshold_default;
+  const object_weight =
+    searchParams.get("object_weight") || object_weight_default;
   const max_interval = searchParams.get("max_interval") || max_interval_default;
 
   const { total, frames, params, offset } = await search(
     q,
     _offset,
     limit,
+    ef,
     nprobe,
     model,
     temporal_k,
     ocr_weight,
     ocr_threshold,
+    object_weight,
     max_interval,
     selected,
   );
@@ -68,22 +76,22 @@ export async function loader({ request }) {
 
 export default function Search() {
   const navigation = useNavigation();
-  const { modelOptions } = useOutletContext();
+  const { modelOptions, objectOptions } = useOutletContext();
   const submit = useSubmit();
   const { query, params, offset, data, selected } = useLoaderData();
-  console.log(params);
   const playVideo = usePlayVideo();
   const [selectedFrame, setSelectedFrame] = useState(null);
+  const [qState, setqState] = useState("");
 
   const { q = "", id = null } = query;
-  const { limit, nprobe, model } = params;
+  const { limit, ef, nprobe, model } = params;
 
   const { total, frames } = data;
   const empty = frames.length === 0;
 
   useEffect(() => {
     // Set correct values
-    document.querySelector("#search-bar").value = q || "";
+    setqState(q || "");
     document.querySelector("#search-bar").focus();
 
     document.title = q;
@@ -197,6 +205,9 @@ export default function Search() {
       });
     }
   };
+  const handleOnChangeAdvanceQuery = (newq) => {
+    setqState(newq);
+  };
   const handleOnSearch = (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -213,26 +224,26 @@ export default function Search() {
       { action: "/search" },
     );
   };
-  console.log(frames);
 
   return (
-    <div id="search-area" className="flex flex-col w-full">
-      <Form className="flex flex-col" onSubmit={handleOnChangeParams}>
-        <div className="py-2 px-5 self-stretch text-md justify-start items-center flex flex-row flex-wrap">
+    <div id="search-area" className="flex flex-col shrink">
+      <Form className="flex flex-row" onSubmit={handleOnChangeParams}>
+        <input
+          className="self-center h-fit text-md px-4 py-1 border-2 border-gray-500 rounded-xl bg-gray-900 text-white hover:bg-gray-800 active:bg-gray-700 text-xs"
+          type="submit"
+          value="Apply"
+        />
+        <div className="py-1 px-5 self-stretch text-xs justify-start items-center flex flex-row flex-wrap">
+          <Editable name="ef" defaultValue={ef_default} />
           <Dropdown name="nprobe" options={nprobeOption} />
           <Dropdown name="limit" options={limitOptions} />
           <Dropdown name="model" options={modelOptions} />
           <Editable name="temporal_k" defaultValue={temporal_k_default} />
           <Editable name="ocr_weight" defaultValue={ocr_weight_default} />
           <Editable name="ocr_threshold" defaultValue={ocr_threshold_default} />
+          <Editable name="object_weight" defaultValue={object_weight_default} />
           <Editable name="max_interval" defaultValue={max_interval_default} />
         </div>
-
-        <input
-          className="self-center h-fit text-md px-4 py-2 border-2 border-gray-500 rounded-xl bg-gray-900 text-white hover:bg-gray-800 active:bg-gray-700"
-          type="submit"
-          value="Apply"
-        />
       </Form>
 
       <Form id="search-form" onSubmit={handleOnSearch}>
@@ -248,8 +259,9 @@ export default function Search() {
             <textarea
               form="search-form"
               autoComplete="off"
-              className="flex-grow text-lg p-2 border-2 rounded-xl border-gray-700 bg-gray-200 text-gray-500 focus:border-black focus:bg-white focus:text-black focus:outline-none"
+              className=" flex-grow text-xs p-1 border-2 rounded-xl border-gray-700 bg-gray-200 text-gray-500 focus:border-black focus:bg-white focus:text-black focus:outline-none"
               name="q"
+              value={qState}
               id="search-bar"
               type="search"
               placeholder="Search"
@@ -260,13 +272,25 @@ export default function Search() {
                   document.querySelector("#search-form input").click();
                 }
               }}
+              onChange={(e) => {
+                setqState(e.target.value);
+              }}
             />
+
             <input
               className="self-center text-lg py-1 px-4 border-2 rounded-xl bg-gray-700 text-white hover:bg-gray-500 active:bg-gray-400"
               type="submit"
               value="Search"
             />
           </div>
+          <AdvanceQueryContainer
+            q={qState}
+            onChange={handleOnChangeAdvanceQuery}
+            objectOptions={objectOptions}
+            onSubmit={() => {
+              document.querySelector("#search-form input").click();
+            }}
+          />
         </div>
       </Form>
 
@@ -279,7 +303,7 @@ export default function Search() {
             goToFirstPage();
           }}
           className="hover:bg-gray-200 active:bg-gray-300"
-          width="50em"
+          width="35em"
           src={HomeButton}
           draggable="false"
         />
@@ -289,7 +313,7 @@ export default function Search() {
             goToPreviousPage();
           }}
           className="hover:bg-gray-200 active:bg-gray-300"
-          width="50em"
+          width="35em"
           src={PreviousButton}
           draggable="false"
         />
@@ -299,7 +323,7 @@ export default function Search() {
             goToNextPage();
           }}
           className="hover:bg-gray-200 active:bg-gray-300"
-          width="50em"
+          width="35em"
           src={NextButton}
           draggable="false"
         />

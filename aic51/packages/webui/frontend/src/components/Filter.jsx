@@ -1,7 +1,7 @@
 export function Dropdown({ name, options }) {
   return (
     <div className="flex flex-row items-center bg-white border-2 rounded-xl p-1">
-      <div className="p-2">
+      <div className="p-1">
         <label className="font-bold" htmlFor={name}>
           {name + " "}
         </label>
@@ -21,7 +21,7 @@ export function Dropdown({ name, options }) {
 export function Editable({ name, defaultValue }) {
   return (
     <div className="flex flex-row items-center bg-white border-2 rounded-xl p-1">
-      <div className="p-2">
+      <div className="p-1">
         <label className="font-bold" htmlFor={name}>
           {name + " "}
         </label>

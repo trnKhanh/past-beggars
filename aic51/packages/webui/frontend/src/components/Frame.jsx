@@ -14,7 +14,7 @@ export function FrameItem({
 }) {
   return (
     <div
-      className={classNames("relative basis-1/5 flex flex-col space-y-2 p-2", {
+      className={classNames("relative basis-1/5 flex flex-col space-y-2 p-1", {
         "bg-white hover:bg-gray-300": !selected,
         "bg-green-500": selected,
       })}
@@ -30,14 +30,14 @@ export function FrameItem({
         <img
           onClick={onPlay}
           className="hover:bg-gray-200 active:bg-gray-300"
-          width="30em"
+          width="25em"
           src={PlayButton}
           draggable="false"
         />
         <img
           onClick={onSearchSimilar}
           className="hover:bg-gray-200 active:bg-gray-300"
-          width="30em"
+          width="25em"
           src={SearchButton}
           draggable="false"
         />
