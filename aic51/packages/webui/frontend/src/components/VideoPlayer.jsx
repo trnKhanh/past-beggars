@@ -1,11 +1,14 @@
 import { useFetcher } from "react-router-dom";
-import { createContext, useEffect, useContext, useState } from "react";
-const VideoContext = createContext({ playVideo: null });
+import { createContext, useEffect, useContext, useState, useRef } from "react";
+import { AuthContext } from "./AuthProvider";
+import { getFrameInfo } from "../services/search.js";
+export const VideoContext = createContext({ playVideo: null });
 
 export default function VideoProvider({ children }) {
   const [frameInfo, setFrameInfo] = useState(null);
-  const playVideo = (f) => {
-    setFrameInfo(f);
+  const playVideo = async (f) => {
+    const res = await getFrameInfo(f.video_id, f.frame_id);
+    setFrameInfo(res);
   };
   const handleOnCancle = () => {
     setFrameInfo(null);
@@ -28,14 +31,16 @@ export function usePlayVideo() {
   return playVideo;
 }
 function VideoPlayer({ frameInfo, onCancle }) {
+  const { evaluationIds, submitAnswer } = useContext(AuthContext);
   const fetcher = useFetcher({ key: "answers" });
+  const videoElementRef = useRef(null);
   const [frameCounter, setFrameCounter] = useState(0);
 
   useEffect(() => {
-    const videoElement = document.querySelector("#playing-video");
-    const fps = frameInfo.fps
+    const fps = frameInfo.fps;
+    const videoElement = videoElementRef.current;
     videoElement.currentTime =
-      parseInt(frameInfo.frame_counter || frameInfo.frame_id) / fps - 0.5;
+      frameInfo.time || parseInt(frameInfo.frame_id) / fps - 0.5;
     videoElement.focus();
 
     const handleKeyDown = (e) => {
@@ -124,27 +129,28 @@ function VideoPlayer({ frameInfo, onCancle }) {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const data = Object.fromEntries(formData);
-
-              fetcher.submit(
-                {
-                  ...data,
-                  video_id: frameInfo.video_id,
-                  frame_id: frameInfo.frame_id,
-                  frame_counter: frameCounter,
-                },
-                { method: "POST", action: "/answers" },
-              );
+              const newAnswer = {
+                ...data,
+                video_id: frameInfo.video_id,
+                frame_id: frameInfo.frame_id,
+                frame_counter: frameCounter,
+                time: videoElementRef.current.currentTime,
+              };
+              submitAnswer(newAnswer);
             }}
           >
             <div className="flex flex-row">
-              <input
+              <select
                 required
                 type="text"
                 name="query_id"
-                placeholder="Query ID"
-                autoComplete="off"
+                placeholder="evaluationIds"
                 className="flex-1 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
-              />
+              >
+                {evaluationIds.map((e) => (
+                  <option value={e.id}>{e.name}</option>
+                ))}
+              </select>
               <input
                 type="text"
                 name="answer"
@@ -154,13 +160,19 @@ function VideoPlayer({ frameInfo, onCancle }) {
               />
               <input
                 type="submit"
-                value="Add to answers"
+                value="Submit"
                 className="text-xl px-4 py-1 bg-sky-100 border border-black rounded-xl focus:outline-none hover:bg-sky-200 active:bg-sky-300"
               />
             </div>
           </fetcher.Form>
         </div>
-        <video id="playing-video" key={frameInfo.video_uri} controls autoPlay>
+        <video
+          ref={videoElementRef}
+          id="playing-video"
+          key={frameInfo.video_uri}
+          controls
+          autoPlay
+        >
           <source src={frameInfo.video_uri} type="video/mp4" />
         </video>
       </div>

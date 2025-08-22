@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from dotenv import load_dotenv
-
+os.environ["YOLO_VERBOSE"] = "False"
 load_dotenv()
 
 from rich.logging import RichHandler

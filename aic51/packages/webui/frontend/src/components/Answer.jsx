@@ -1,5 +1,5 @@
 import { useFetcher, useSubmit, useSearchParams, Form } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import JSZip from "jszip";
 import classNames from "classnames";
 
@@ -7,9 +7,10 @@ import FindButton from "../assets/search-btn.svg";
 import PlayButton from "../assets/play-btn.svg";
 import DeleteButton from "../assets/delete-btn.svg";
 import EditButton from "../assets/edit-btn.svg";
-import DownloadButton from "../assets/download-btn.svg";
+import SubmitButton from "../assets/upload-btn.svg";
 
 import { usePlayVideo } from "./VideoPlayer.jsx";
+import { AuthContext } from "./AuthProvider";
 import { getCSV, getAnswersByIds } from "../services/answer.js";
 import { getBlob, downloadFile } from "../utils/files.js";
 import { getFrameInfo } from "../services/search.js";
@@ -20,8 +21,9 @@ function AnswerItem({
   selected,
   onClick,
   inList,
-  onDownload,
+  onSubmitAnswer,
 }) {
+  const { evaluationIds } = useContext(AuthContext);
   const [isEditing, setIsEditing] = useState(false);
   const submit = useSubmit();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,8 +42,8 @@ function AnswerItem({
     }
   };
   const handleOnPlay = async (e) => {
-    const frameInfo = await getFrameInfo(answer.video_id, answer.frame_counter);
-    frameInfo.frame_counter = answer.frame_counter;
+    const frameInfo = await getFrameInfo(answer.video_id, answer.frame_id);
+    frameInfo.time = answer.time;
     playVideo(frameInfo);
   };
   const handleOnFind = async () => {
@@ -51,7 +53,7 @@ function AnswerItem({
     }
     const currentParams = Object.fromEntries(searchParams);
     const filteredParams = Object.keys(currentParams)
-      .filter((k) => (k !== "q" && k != "offset"))
+      .filter((k) => k !== "q" && k != "offset")
       .reduce((obj, key) => {
         obj[key] = currentParams[key];
         return obj;
@@ -84,15 +86,18 @@ function AnswerItem({
         }}
       >
         <div className="p-1 w-full flex flex-row flex-wrap justify-center items-center bg-lime-100">
-          <input
-            required
+          <select
             type="text"
             name="query_id"
-            placeholder="Query ID"
             autoComplete="off"
-            defaultValue={answer.query_id}
-            className="basis-1/3 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
-          />
+            className="basis-1/2 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
+          >
+            {evaluationIds.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+          </select>
           <input
             required
             type="text"
@@ -100,24 +105,15 @@ function AnswerItem({
             placeholder="Video ID"
             autoComplete="off"
             defaultValue={answer.video_id}
-            className="basis-1/3 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
+            className="basis-1/2 py-1 px-2 border-black min-w-0 focus:outline-none"
           />
           <input
             required
             type="text"
-            name="frame_id"
-            placeholder="Frame ID"
+            name="time"
+            placeholder="Time"
             autoComplete="off"
-            defaultValue={answer.frame_id}
-            className="basis-1/3 py-1 px-2 min-w-0 focus:outline-none"
-          />
-          <input
-            required
-            type="text"
-            name="frame_counter"
-            placeholder="Frame Counter"
-            autoComplete="off"
-            defaultValue={answer.frame_counter}
+            defaultValue={answer.time}
             className="flex-[1_0_50%] border-black border-r-2 py-1 px-2 min-w-0 focus:outline-none mt-2"
           />
           <input
@@ -150,9 +146,10 @@ function AnswerItem({
       className={classNames(
         "w-full flex flex-row justify-between items-center py-2",
         {
-          "bg-violet-200 hover:bg-violet-300": inList,
-          "bg-blue-200 font-bold": !inList && selected,
-          "hover:bg-blue-100": !inList && !selected,
+          "bg-green-200": answer.correct,
+          "bg-red-200": !answer.correct,
+          "bg-green-300 font-bold": selected && answer.correct,
+          "bg-red-300 font-bold": selected && !answer.correct,
         },
       )}
       onMouseLeave={handleOnMouseLeave}
@@ -162,7 +159,7 @@ function AnswerItem({
       }}
     >
       <div id="answer-description">
-        <div className="">{answer.query_id}</div>
+        <div className="">{answer.submitted}</div>
       </div>
       <div
         id="answer-option"
@@ -180,11 +177,11 @@ function AnswerItem({
         />
         <img
           className="hover:bg-blue-100 active:bg-blue-50 select-none"
-          src={DownloadButton}
+          src={SubmitButton}
           width="30em"
           draggable="false"
           onClick={() => {
-            onDownload(answer);
+            onSubmitAnswer(answer);
           }}
         />
         <img
@@ -214,10 +211,10 @@ function AnswerItem({
 }
 function AnswerDetail({ answer }) {
   return (
-    <div className="absolute left-96 top-0 bg-blue-200 w-52 p-3">
+    <div className="absolute left-96 top-0 bg-blue-200 w-96 p-3">
       <div>
         <div className="">
-          <span className="font-bold">Query ID</span>
+          <span className="font-bold">Evaluation ID</span>
           {": "}
           {answer.query_id}
         </div>
@@ -232,28 +229,94 @@ function AnswerDetail({ answer }) {
           {answer.frame_id}
         </div>
         <div className="">
+          <span className="font-bold">Time</span>
+          {": "}
+          {answer.time}
+        </div>
+        <div className="">
           <span className="font-bold">Answer</span>
           {": "}
           {answer.answer}
+        </div>
+        <div className="">
+          <span className="font-bold">Result</span>
+          {": "}
+          {answer.correct ? "Correct" : "Wrong"}
+        </div>
+        <div className="">
+          <span className="font-bold">Submitted at</span>
+          {": "}
+          {answer.submitted}
         </div>
       </div>
     </div>
   );
 }
+function AuthHeader({}) {
+  const { updateAuth } = useContext(AuthContext);
+  return (
+    <div>
+      <Form
+        className="p-1 flex flex-row space-x-1 bg-blue-200"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          updateAuth(formData.get("username"), formData.get("password"));
+        }}
+      >
+        <input
+          className="min-w-0 p-1"
+          type="text"
+          name="username"
+          placeholder="username"
+        />
+        <input
+          className="min-w-0 p-1"
+          type="password"
+          name="password"
+          placeholder="password"
+        />
+        <input
+          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 active:bg-gray-400 rounded-xl "
+          type="submit"
+          value="Sign in"
+        />
+      </Form>
+    </div>
+  );
+}
 
 function AnswerHeader({}) {
+  const { evaluationIds, submitAnswer } = useContext(AuthContext);
   const fetcher = useFetcher({ key: "answers" });
   return (
-    <fetcher.Form action="/answers" method="POST">
+    <fetcher.Form
+      onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const data = Object.fromEntries(formData);
+        const newAnswer = {
+          ...data,
+        };
+        submitAnswer(newAnswer);
+      }}
+      action="/answers"
+      method="POST"
+    >
       <div className="p-1 w-full flex flex-row flex-wrap justify-center items-center bg-lime-100">
-        <input
+        <select
           required
           type="text"
           name="query_id"
-          placeholder="Query ID"
           autoComplete="off"
           className="basis-1/3 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
-        />
+        >
+          {evaluationIds.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+        </select>
         <input
           required
           type="text"
@@ -265,8 +328,8 @@ function AnswerHeader({}) {
         <input
           required
           type="text"
-          name="frame_counter"
-          placeholder="Frame Counter"
+          name="time"
+          placeholder="Time"
           autoComplete="off"
           className="basis-1/3 py-1 px-2 min-w-0 focus:outline-none"
         />
@@ -279,7 +342,7 @@ function AnswerHeader({}) {
         />
         <input
           type="submit"
-          value="Add"
+          value="Submit"
           className="flex-grow-0 mt-2 rounded-xl border-2 border-black text-lg px-4 py-1 bg-sky-100 focus:outline-none hover:bg-sky-200 active:bg-sky-300"
         />
       </div>
@@ -288,10 +351,9 @@ function AnswerHeader({}) {
 }
 
 export default function AnswerSidebar({}) {
+  const { submitAnswer } = useContext(AuthContext);
   const fetcher = useFetcher({ key: "answers" });
   const [selected, setSelected] = useState(null);
-  const [downloadStep, setDownloadStep] = useState(50);
-  const [downloadN, setDownloadN] = useState(5);
   const [downloadList, setDownloadList] = useState([]);
   const playVideo = usePlayVideo();
 
@@ -311,82 +373,29 @@ export default function AnswerSidebar({}) {
       setDownloadList([...downloadList, answer.id]);
     }
   };
-  const handleOnSingleDownload = async (a) => {
-    const csvData = getCSV(a, downloadN, downloadStep);
-    const csvBlob = getBlob(csvData, "text/csv");
-    downloadFile(csvBlob, `query-${a.query_id}.csv`);
-  };
-  const handleOnBulkDownload = async (e) => {
-    e.preventDefault();
-    const downloadAnswers = await getAnswersByIds(downloadList);
-    const zip = new JSZip();
-    for (const a of downloadAnswers) {
-      const csvData = getCSV(a, downloadN, downloadStep);
-      zip.file(`query-${a.query_id}.csv`, csvData);
-    }
-    zip.generateAsync({ type: "blob" }).then((content) => {
-      downloadFile(content, "submission.zip");
-    });
+  const handleOnSubmitAnswer = async (a) => {
+    submitAnswer(a);
   };
 
   return (
     <div className="relative p-2">
       <div className="flex flex-col">
+        <AuthHeader />
         <AnswerHeader />
-        <Form onSubmit={handleOnBulkDownload}>
-          <div className="flex flex-col items-center p-1 w-full bg-red-100">
-            <div className="flex flex-row justify-center items-center">
-              <label htmlFor="n" className="mr-1 font-bold text-black">
-                N:
-              </label>
-              <input
-                required
-                type="text"
-                name="n"
-                placeholder="n"
-                autoComplete="off"
-                value={downloadN}
-                onChange={(e) => {
-                  setDownloadN(e.target.value);
-                }}
-                className="basis-1/4 py-1 px-2 mr-3 min-w-0 focus:outline-none"
-              />
-              <label htmlFor="step" className="mr-1 font-bold text-black">
-                Step:
-              </label>
-              <input
-                required
-                type="text"
-                name="step"
-                placeholder="step"
-                autoComplete="off"
-                value={downloadStep}
-                onChange={(e) => {
-                  setDownloadStep(e.target.value);
-                }}
-                className="basis-1/4 py-1 px-2 min-w-0 focus:outline-none"
-              />
-            </div>
-            <input
-              disabled={downloadList.length === 0}
-              type="submit"
-              value="Download"
-              className="flex-grow-0 mt-2 rounded-xl border-2 border-black text-lg px-4 py-1 bg-sky-100 focus:outline-none hover:bg-sky-200 active:bg-sky-300 disabled:bg-slate-100 disabled:border-slate-300 disabled:text-slate-300"
-            />
-          </div>
-        </Form>
         {fetcher.data &&
-          fetcher.data.map((answer) => (
-            <AnswerItem
-              key={answer.id}
-              answer={answer}
-              selected={selected !== null && selected.id === answer.id}
-              inList={downloadList.includes(answer.id)}
-              onSelect={handleOnSelect}
-              onClick={handleOnClick}
-              onDownload={handleOnSingleDownload}
-            />
-          ))}
+          fetcher.data
+            .toReversed()
+            .map((answer) => (
+              <AnswerItem
+                key={answer.id}
+                answer={answer}
+                selected={selected !== null && selected.id === answer.id}
+                inList={downloadList.includes(answer.id)}
+                onSelect={handleOnSelect}
+                onClick={handleOnClick}
+                onSubmitAnswer={handleOnSubmitAnswer}
+              />
+            ))}
       </div>
       {selected !== null && <AnswerDetail answer={selected} />}
     </div>
