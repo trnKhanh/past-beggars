@@ -1,4 +1,3 @@
-import { getAvailableModels } from "../services/search.js";
 export const nlist = 128;
 export const ef_default = 32;
 export const nprobeOption = [512, 256, 128, 32, 8];

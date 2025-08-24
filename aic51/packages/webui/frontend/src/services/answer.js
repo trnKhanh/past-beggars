@@ -23,8 +23,7 @@ export async function getAnswersByIds(ids) {
   if (!answers) {
     return [];
   }
-  const res = answers.filter((answer) => ids.includes(answer.id));
-  return res;
+  return answers.filter((answer) => ids.includes(answer.id));
 }
 
 export async function addAnswer(answer) {
@@ -55,8 +54,7 @@ export async function updateAnswer(id, new_answer) {
     }
   });
   await localforage.setItem("answers", updatedAnswer);
-  const res = await localforage.getItem("answers");
-  return res;
+  return await localforage.getItem("answers");
 }
 
 export async function deleteAnswer(id) {
@@ -65,8 +63,7 @@ export async function deleteAnswer(id) {
     (answer) => parseInt(answer.id) !== parseInt(id),
   );
   await localforage.setItem("answers", newAnswers);
-  const res = await localforage.getItem("answers");
-  return res;
+  return await localforage.getItem("answers");
 }
 
 export function getCSV(answer, n, step) {
@@ -86,6 +83,5 @@ export function getCSV(answer, n, step) {
       fileData += `${answer.video_id},${Math.round(curFrame)},${answer.answer}`;
     else fileData += `${answer.video_id},${Math.round(curFrame)}`;
   }
-
   return fileData;
 }

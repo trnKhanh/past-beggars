@@ -1,7 +1,9 @@
 import os
+import sys
 import inspect
 from importlib import import_module
 from pkgutil import iter_modules
+
 from .command import BaseCommand
 
 # Find all subclasses of BaseCommand and export them as available_commands

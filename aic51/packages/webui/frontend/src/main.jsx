@@ -22,10 +22,12 @@ import "./index.css";
 
 const router = createBrowserRouter(
   createRoutesFromElements([
+      // eslint-disable-next-line react/jsx-key
     <Route path="/" element={<Root />} loader={RootLoader}>
       <Route path="search" element={<Search />} loader={SearchLoader} />
       <Route path="similar" element={<Search />} loader={SearchSimilarLoader} />
     </Route>,
+      // eslint-disable-next-line react/jsx-key
     <Route path="answers" action={AnswerAction} loader={AnswerLoader}>
       <Route path=":answerId">
         <Route path="delete" action={AnswerDeleteAction} />

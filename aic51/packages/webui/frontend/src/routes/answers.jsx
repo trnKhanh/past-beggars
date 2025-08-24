@@ -1,4 +1,3 @@
-import { redirect } from "react-router-dom";
 import { getAnswers, addAnswer } from "../services/answer.js";
 
 export async function action({ params, request }) {

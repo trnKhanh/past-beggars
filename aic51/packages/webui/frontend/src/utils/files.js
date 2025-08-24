@@ -1,6 +1,5 @@
 export function getBlob(blobData, mimeType) {
-  const blob = new Blob([blobData], { type: mimeType });
-  return blob;
+    return new Blob([blobData], {type: mimeType});
 }
 
 export function downloadFile(blob, name) {

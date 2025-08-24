@@ -1,40 +1,39 @@
 import axios from "axios";
 
-let HOST = "";
-if (import.meta.env.MODE === "development") {
-  const PORT = import.meta.env.VITE_PORT || 5000;
-  HOST = `http://localhost:${PORT}`;
-}
+const PORT = import.meta.env.VITE_PORT || 5100;
 
 export async function search(
   q,
   offset,
   limit,
-  ef,
   nprobe,
   model,
   temporal_k,
   ocr_weight,
   ocr_threshold,
-  object_weight,
   max_interval,
   selected,
+  target_features,
 ) {
-  const res = await axios.get(`${HOST}/api/search`, {
-    params: {
-      q: q,
-      offset: offset,
-      limit: limit,
-      ef: ef,
-      nprobe: nprobe,
-      model: model,
-      temporal_k: temporal_k,
-      ocr_weight: ocr_weight,
-      ocr_threshold: ocr_threshold,
-      object_weight: object_weight,
-      max_interval: max_interval,
-      selected: selected,
-    },
+  const params = {
+    q: q,
+    offset: offset,
+    limit: limit,
+    nprobe: nprobe,
+    model: model,
+    temporal_k: temporal_k,
+    ocr_weight: ocr_weight,
+    ocr_threshold: ocr_threshold,
+    max_interval: max_interval,
+    selected: selected,
+  };
+
+  if (target_features && Array.isArray(target_features) && target_features.length > 0) {
+    params.target_features = target_features;
+  }
+
+  const res = await axios.get(`http://127.0.0.1:${PORT}/api/search`, {
+    params: params,
   });
   const data = res.data;
   return data;
@@ -43,27 +42,23 @@ export async function searchSimilar(
   id,
   offset,
   limit,
-  ef,
   nprobe,
   model,
   temporal_k,
   ocr_weight,
   ocr_threshold,
-  object_weight,
   max_interval,
 ) {
-  const res = await axios.get(`${HOST}/api/similar`, {
+  const res = await axios.get(`http://127.0.0.1:${PORT}/api/similar`, {
     params: {
       id: id,
       offset: offset,
       limit: limit,
-      ef: ef,
       nprobe: nprobe,
       model: model,
       temporal_k: temporal_k,
       ocr_weight: ocr_weight,
       ocr_threshold: ocr_threshold,
-      object_weight: object_weight,
       max_interval: max_interval,
     },
   });
@@ -72,7 +67,7 @@ export async function searchSimilar(
 }
 
 export async function getFrameInfo(videoId, frameId) {
-  const res = await axios.get(`${HOST}/api/frame_info`, {
+  const res = await axios.get(`http://127.0.0.1:${PORT}/api/frame_info`, {
     params: {
       video_id: videoId,
       frame_id: frameId,
@@ -82,12 +77,13 @@ export async function getFrameInfo(videoId, frameId) {
   return data;
 }
 export async function getAvailableModels() {
-  const res = await axios.get(`${HOST}/api/models`);
+  const res = await axios.get(`http://127.0.0.1:${PORT}/api/models`);
   const data = res.data;
   return data;
 }
-export async function getObjectClasses() {
-  const res = await axios.get(`${HOST}/api/objects`);
+
+export async function getTargetFeatures() {
+  const res = await axios.get(`http://127.0.0.1:${PORT}/api/target_features`);
   const data = res.data;
   return data;
 }

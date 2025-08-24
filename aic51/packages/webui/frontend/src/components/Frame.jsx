@@ -14,13 +14,13 @@ export function FrameItem({
 }) {
   return (
     <div
-      className={classNames("relative basis-1/5 flex flex-col space-y-2 p-1", {
+      className={classNames("relative flex flex-col space-y-2 p-1", {
         "bg-white hover:bg-gray-300": !selected,
         "bg-green-500": selected,
       })}
       onDoubleClick={onSelect}
     >
-      <img src={thumbnail} draggable="false" />
+      <img src={thumbnail} draggable="false" className="w-full h-auto" />
       <div
         onClick={(e) => {
           e.stopPropagation();
@@ -53,5 +53,5 @@ export function FrameItem({
 }
 
 export function FrameContainer({ children }) {
-  return <div className="flex flex-wrap">{children}</div>;
+  return <div className="grid grid-cols-5 gap-2">{children}</div>;
 }
