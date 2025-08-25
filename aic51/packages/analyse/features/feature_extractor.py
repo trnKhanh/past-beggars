@@ -1,9 +1,12 @@
 import logging
-from typing import Any
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Callable, Optional
 
-from torch.utils.data import Dataset, DataLoader
+import numpy as np
+import torch
 from PIL import Image
+from torch.utils.data import DataLoader, Dataset
 
 
 class ImageDataset(Dataset):
@@ -20,18 +23,30 @@ class ImageDataset(Dataset):
         image = Image.open(path)
 
         processed_data = self._processor(images=[image], return_tensors="pt")
-        processed_data["pixel_values"] = processed_data["pixel_values"].squeeze(
-            0
-        )
+        processed_data["pixel_values"] = processed_data["pixel_values"].squeeze(0)
 
         return processed_data
 
 
 class FeatureExtractor(ABC):
     @abstractmethod
-    def get_image_features(self, image_paths, batch_size, callback) -> Any:
+    def __init__(self, name: str, batch_size: int, device: str | torch.device, *args, **kwargs) -> None:
+        self.name = name
+        self._batch_size = batch_size
+        self.to(device)
+
+    @abstractmethod
+    def get_image_features(
+        self,
+        images: list[Path | str] | np.ndarray | torch.Tensor | list[Image.Image],
+        callback: Optional[Callable] = None,
+    ) -> np.ndarray:
         pass
 
     @abstractmethod
-    def get_text_features(self, texts) -> Any:
+    def get_text_features(self, texts: list[str] | str | np.ndarray, callback: Optional[Callable] = None) -> Any:
+        pass
+
+    @abstractmethod
+    def to(self, device: str | torch.device):
         pass

@@ -1,31 +1,18 @@
-import os
 import logging
+import os
 from argparse import ArgumentParser
 from pathlib import Path
+from aic51.packages.logger import logger
 
 from dotenv import load_dotenv
+
 os.environ["YOLO_VERBOSE"] = "False"
 load_dotenv()
 
-from rich.logging import RichHandler
-from rich.traceback import install
 
 dev_mode = os.getenv("AIC51_DEV", "false").lower() == "true"
-# Setup loggers
-FORMAT = "%(message)s"
-DATE_FORMAT = "[%X]"
-logging.basicConfig(
-    level=logging.DEBUG if dev_mode else logging.INFO,
-    format=FORMAT,
-    datefmt=DATE_FORMAT,
-    handlers=[RichHandler(rich_tracebacks=True)],
-)
-logger = logging.getLogger(__name__)
-
-install(show_locals=dev_mode)
 
 from . import commands
-
 
 def main():
 
@@ -38,6 +25,11 @@ def main():
         dest="verbose",
         action="store_false",
     )
+    parser.add_argument(
+        "--dev",
+        dest="dev_mode",
+        action="store_true",
+    )
     subparser = parser.add_subparsers(help="command", dest="command")
 
     for command_cls in commands.available_commands:
@@ -49,6 +41,9 @@ def main():
 
     args = vars(args)
     command = args.pop("command")
+    dev_mode = args.pop("dev_mode")
+    if dev_mode:
+        logger.setLevel(logging.INFO)
 
     func = args.pop("func")
     if not args.get("verbose"):

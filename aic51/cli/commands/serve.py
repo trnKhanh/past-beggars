@@ -1,21 +1,21 @@
-import os
 import json
-import sys
+import os
 import shutil
 import subprocess
-from multiprocessing import Process
-from dotenv import set_key
-from pathlib import Path
+import sys
 from concurrent.futures import ThreadPoolExecutor
-
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from multiprocessing import Process
+from pathlib import Path
 
 import uvicorn
+from dotenv import set_key
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
+from aic51.packages.config import GlobalConfig
+from aic51.packages.index import MilvusDatabase
+from aic51.packages.search import Searcher
 
 from .command import BaseCommand
-from ...config import GlobalConfig
-from ...packages.index import MilvusDatabase
-from ...packages.search import Searcher
 
 
 class ServeCommand(BaseCommand):
@@ -90,9 +90,7 @@ class ServeCommand(BaseCommand):
         **kwargs,
     ):
         MilvusDatabase.start_server()
-        self._searcher = Searcher(
-            GlobalConfig.get("webui", "database") or "milvus"
-        )
+        self._searcher = Searcher(GlobalConfig.get("webui", "database") or "milvus")
         self._install_frontend()
         if len(GlobalConfig.get("webui", "features") or []) == 0:
             self._logger.error(
@@ -115,9 +113,7 @@ class ServeCommand(BaseCommand):
             frontend_process = subprocess.Popen(
                 dev_cmd,
                 env=dev_env,
-                cwd=str(
-                    Path(__file__).parent / "../../packages/webui/frontend"
-                ),
+                cwd=str(Path(__file__).parent / "../../packages/webui/frontend"),
             )
         else:
             self._build_frontend()
@@ -179,20 +175,14 @@ class ServeCommand(BaseCommand):
                     TimeElapsedColumn(),
                     disable=not verbose,
                 ) as progress,
-                ThreadPoolExecutor(
-                    round((os.cpu_count() or 0) * max_workers_ratio) or 1
-                ) as executor,
+                ThreadPoolExecutor(round((os.cpu_count() or 0) * max_workers_ratio) or 1) as executor,
             ):
 
                 def update_progress(task_id):
-                    return lambda *args, **kwargs: progress.update(
-                        task_id, *args, **kwargs
-                    )
+                    return lambda *args, **kwargs: progress.update(task_id, *args, **kwargs)
 
                 def index_one_video(video_id):
-                    task_id = progress.add_task(
-                        description="Processing...", name=video_id
-                    )
+                    task_id = progress.add_task(description="Processing...", name=video_id)
                     try:
                         self._extract_video_info(
                             video_id,
@@ -248,9 +238,7 @@ class ServeCommand(BaseCommand):
             cwd=str(Path(__file__).parent / "../../packages/webui/frontend"),
         )
         built_dir = Path(__file__).parent / "../../packages/webui/frontend/dist"
-        public_dir = (
-            Path(__file__).parent / "../../packages/webui/frontend/public"
-        )
+        public_dir = Path(__file__).parent / "../../packages/webui/frontend/public"
 
         web_dir = self._work_dir / ".web"
 
@@ -265,9 +253,7 @@ class ServeCommand(BaseCommand):
         video_ids = []
         for video in videos_dir.glob("*.mp4"):
             video_id = video.stem
-            video_info_path = (
-                self._work_dir / "videos_info" / f"{video_id}.json"
-            )
+            video_info_path = self._work_dir / "videos_info" / f"{video_id}.json"
             if not video_info_path.exists():
                 video_ids.append(video_id)
         return video_ids

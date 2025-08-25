@@ -1,13 +1,14 @@
-import logging
-import time
-import re
 import hashlib
+import logging
+import re
 import subprocess
+import time
 from pathlib import Path
-from thefuzz import fuzz
 
 from pymilvus import DataType, MilvusClient
-from ...config import GlobalConfig
+from thefuzz import fuzz
+
+from aic51.packages.config import GlobalConfig
 
 
 class MilvusDatabase(object):
@@ -40,18 +41,14 @@ class MilvusDatabase(object):
             if collection_exists:
                 self._client.drop_collection(self._collection_name)
 
-            schema = MilvusClient.create_schema(
-                auto_id=False, enable_dynamic_field=False
-            )
+            schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
             fields = GlobalConfig.get("milvus", "fields")
             if fields is not None:
                 for field in fields:
                     if "datatype" in field:
                         field["datatype"] = self.DATATYPE_MAP[field["datatype"]]
                     if "element_type" in field:
-                        field["element_type"] = self.DATATYPE_MAP[
-                            field["element_type"]
-                        ]
+                        field["element_type"] = self.DATATYPE_MAP[field["element_type"]]
 
                     schema.add_field(**field)
 
@@ -61,9 +58,7 @@ class MilvusDatabase(object):
                 for index in indices:
                     index_params.add_index(**index)
 
-            self._client.create_collection(
-                collection_name, schema=schema, index_params=index_params
-            )
+            self._client.create_collection(collection_name, schema=schema, index_params=index_params)
 
     def __del__(self):
         self._client.close()
@@ -120,9 +115,7 @@ class MilvusDatabase(object):
             output_fields=["*"],
         )
         finish_time = time.time()
-        self._logger.debug(
-            f"Takes {finish_time-start_time:.4f} seconds to search"
-        )
+        self._logger.debug(f"Takes {finish_time-start_time:.4f} seconds to search")
         return res
 
     def get_total(self):
@@ -131,10 +124,7 @@ class MilvusDatabase(object):
 
     @classmethod
     def start_server(cls):
-        compose_file = (
-            Path(__file__).parent
-            / "../../milvus-standalone/milvus-standalone-docker-compose.yaml"
-        )
+        compose_file = Path(__file__).parent / "../../milvus-standalone/milvus-standalone-docker-compose.yaml"
 
         compose_cmd = [
             "docker",
@@ -148,10 +138,7 @@ class MilvusDatabase(object):
 
     @classmethod
     def stop_server(cls):
-        compose_file = (
-            Path(__file__).parent
-            / "../../milvus-standalone/milvus-standalone-docker-compose.yaml"
-        )
+        compose_file = Path(__file__).parent / "../../milvus-standalone/milvus-standalone-docker-compose.yaml"
         compose_cmd = [
             "docker",
             "compose",

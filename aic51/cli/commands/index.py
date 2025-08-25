@@ -1,16 +1,17 @@
-from pathlib import Path
-import subprocess
-import os
 import json
+import os
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import numpy as np
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
+from aic51.packages.analyse.objects import Yolo
+from aic51.packages.config import GlobalConfig
+from aic51.packages.index import MilvusDatabase
+
 from .command import BaseCommand
-from ...packages.index import MilvusDatabase
-from ...packages.analyse.objects import Yolo
-from ...config import GlobalConfig
 
 
 class IndexCommand(BaseCommand):
@@ -45,9 +46,7 @@ class IndexCommand(BaseCommand):
 
         parser.set_defaults(func=self)
 
-    def __call__(
-        self, collection_name, do_overwrite, do_update, verbose, *args, **kwargs
-    ):
+    def __call__(self, collection_name, do_overwrite, do_update, verbose, *args, **kwargs):
         MilvusDatabase.start_server()
         database = MilvusDatabase(collection_name, do_overwrite)
         features_dir = self._work_dir / "features"
@@ -61,20 +60,14 @@ class IndexCommand(BaseCommand):
                 TimeElapsedColumn(),
                 disable=not verbose,
             ) as progress,
-            ThreadPoolExecutor(
-                round((os.cpu_count() or 0) * max_workers_ratio) or 1
-            ) as executor,
+            ThreadPoolExecutor(round((os.cpu_count() or 0) * max_workers_ratio) or 1) as executor,
         ):
 
             def update_progress(task_id):
-                return lambda *args, **kwargs: progress.update(
-                    task_id, *args, **kwargs
-                )
+                return lambda *args, **kwargs: progress.update(task_id, *args, **kwargs)
 
             def index_one_video(video_id):
-                task_id = progress.add_task(
-                    description="Processing...", name=video_id
-                )
+                task_id = progress.add_task(description="Processing...", name=video_id)
                 try:
                     self._index_features(
                         database,
@@ -112,9 +105,7 @@ class IndexCommand(BaseCommand):
         features_dir = self._work_dir / "features" / video_id
         data_list = []
         feature_fields = [
-            x["field_name"]
-            for x in GlobalConfig.get("milvus", "fields") or []
-            if x["field_name"] != "frame_id"
+            x["field_name"] for x in GlobalConfig.get("milvus", "fields") or [] if x["field_name"] != "frame_id"
         ]
         for frame_path in features_dir.glob("*/"):
             if not frame_path.is_dir():

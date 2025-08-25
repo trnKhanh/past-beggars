@@ -1,10 +1,22 @@
-max_workers_ratio: 1.0
+# max workers ratio defining how much CPU cores to use
+max_workers_ratio: 0.5
+
 add:
-  max_scene_length: 50
+  # Maximum length between two consecutive keyframes (in seconds)
+  max_scene_length: 2
+  # Keyframe size ratio to the original frame. This also affects resolution of videos
+  keyframe_resize_ratio: 0.5
+  # Thumbnail size ratio to the keyframe
+  thumbnail_resize_ratio: 0.25
+  # Max clips length around the keyframes (in seconds)
+  clip_length: 7
+  # Video compress ratio
+  compress_size_rate: 0.5
+
 analyse:
   features: &analyse_features
     - name: "clip"
-      pretrained_model: "apple/DFN5B-CLIP-ViT-H-14-378"
+      pretrained_model: "openai/clip-vit-base-patch32"
       batch_size: 16
     - name: "ocr"
       batch_size: 8

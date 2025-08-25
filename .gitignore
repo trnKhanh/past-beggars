@@ -1,7 +1,9 @@
+
 # Milvus-standalone
 volumes
 
 # Misc
+tmp
 keyframes
 data
 

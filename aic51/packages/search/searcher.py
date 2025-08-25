@@ -1,16 +1,16 @@
+import hashlib
+import logging
 import re
 import time
 from copy import deepcopy
-import logging
-import hashlib
 
-from thefuzz import fuzz
 import torch
+from thefuzz import fuzz
 
-from ..index import MilvusDatabase
-from ...config import GlobalConfig
-from ...packages.analyse.features import CLIP
-from ...packages.analyse.objects import Yolo
+from aic51.packages.analyse.features.clip import CLIP
+from aic51.packages.analyse.objects import Yolo
+from aic51.packages.config import GlobalConfig
+from aic51.packages.index import MilvusDatabase
 
 
 class Searcher(object):
@@ -45,11 +45,7 @@ class Searcher(object):
 
     def _process_query(self, query):
         video_match = re.search("video:L\\d{2}_V\\d{3}", query, re.IGNORECASE)
-        video_ids = (
-            video_match.group()[len("video:") :].strip('" ').split(",")
-            if video_match is not None
-            else []
-        )
+        video_ids = video_match.group()[len("video:") :].strip('" ').split(",") if video_match is not None else []
         if video_match is not None:
             query = query.replace(video_match.group(), "", 1)
 
@@ -73,15 +69,9 @@ class Searcher(object):
                 match = re.search('object:((".+?")|\\S+)\\s?', q, re.IGNORECASE)
                 if match is None:
                     break
-                object_str = (
-                    match.group().replace("object:", "", 1).strip('" ').lower()
-                )
+                object_str = match.group().replace("object:", "", 1).strip('" ').lower()
                 object_parts = object_str.split("_")
-                bbox = (
-                    [float(x) for x in object_parts[1].split(",")]
-                    if len(object_parts) > 1
-                    else []
-                )
+                bbox = [float(x) for x in object_parts[1].split(",")] if len(object_parts) > 1 else []
                 if len(bbox) > 4:
                     bbox = bbox[:4]
                 while len(bbox) != 4:
@@ -100,25 +90,17 @@ class Searcher(object):
                 processed["advance"][-1]["objects"] = objects
         return processed
 
-    def _process_advance(
-        self, advance_query, result, ocr_weight, ocr_threshold, object_weight
-    ):
-        result = self._process_ocr(
-            advance_query, result, ocr_weight, ocr_threshold
-        )
+    def _process_advance(self, advance_query, result, ocr_weight, ocr_threshold, object_weight):
+        result = self._process_ocr(advance_query, result, ocr_weight, ocr_threshold)
         result = self._process_objects(advance_query, result, object_weight)
         return result
 
     def _process_objects(self, advance_query, result, object_weight):
         if "objects" not in advance_query:
             return result
-        class_ids = dict(
-            [(v.lower(), int(k)) for k, v in Yolo.classes_list().items()]
-        )
+        class_ids = dict([(v.lower(), int(k)) for k, v in Yolo.classes_list().items()])
         query_objects = advance_query["objects"]
-        query_objects = [
-            [x[0], class_ids[x[1]]] for x in query_objects if x[1] in class_ids
-        ]
+        query_objects = [[x[0], class_ids[x[1]]] for x in query_objects if x[1] in class_ids]
 
         def cal_area(bbox):
             if bbox[0] >= bbox[2] or bbox[1] >= bbox[3]:
@@ -138,9 +120,7 @@ class Searcher(object):
             return inter_area / (area1 + area2 - inter_area)
 
         for i, record in enumerate(result):
-            record_objects = (
-                record["entity"]["yolo"] if "yolo" in record["entity"] else []
-            )
+            record_objects = record["entity"]["yolo"] if "yolo" in record["entity"] else []
             sum_distance = 0
             cnt = 0
             # format of each object: [bbox, cls, conf]
@@ -152,10 +132,7 @@ class Searcher(object):
                     if query_class != record_class:
                         continue
                     query_bbox = [float(x) for x in query_object[0]]
-                    record_bbox = [
-                        float(x)
-                        for x in record_object[0][0] + record_object[0][2]
-                    ]
+                    record_bbox = [float(x) for x in record_object[0][0] + record_object[0][2]]
                     iou = cal_IOU(query_bbox, record_bbox)
                     record_conf = float(record_object[2])
                     cur_distance = iou * record_conf
@@ -163,9 +140,7 @@ class Searcher(object):
                 sum_distance += max_distance
                 if max_distance != 0:
                     cnt += 1
-            result[i]["distance"] += (
-                object_weight * sum_distance / cnt if cnt > 0 else 0
-            )
+            result[i]["distance"] += object_weight * sum_distance / cnt if cnt > 0 else 0
         result = sorted(result, key=lambda x: x["distance"], reverse=True)
         return result
 
@@ -174,22 +149,16 @@ class Searcher(object):
             return result
         query_ocr = advance_query["ocr"]
         for i, record in enumerate(result):
-            record_ocr = (
-                record["entity"]["ocr"] if "ocr" in record["entity"] else []
-            )
+            record_ocr = record["entity"]["ocr"] if "ocr" in record["entity"] else []
             sum_distance = 0
             cnt = 0
             for query_text in query_ocr:
                 max_distance = 0
                 for record_text in record_ocr:
-                    record_bbox = [
-                        float(x) for x in record_text[0][0] + record_text[0][2]
-                    ]
+                    record_bbox = [float(x) for x in record_text[0][0] + record_text[0][2]]
                     if record_bbox[1] > 0.90:
                         continue
-                    partial_ratio = fuzz.partial_ratio(
-                        query_text.lower(), record_text[1].lower()
-                    )
+                    partial_ratio = fuzz.partial_ratio(query_text.lower(), record_text[1].lower())
                     if partial_ratio > ocr_threshold:
                         max_distance = max(max_distance, partial_ratio / 100)
 
@@ -197,9 +166,7 @@ class Searcher(object):
                 if max_distance > 0:
                     cnt += 1
 
-            result[i]["distance"] += (
-                ocr_weight * sum_distance / cnt if cnt > 0 else 0
-            )
+            result[i]["distance"] += ocr_weight * sum_distance / cnt if cnt > 0 else 0
         result = sorted(result, key=lambda x: x["distance"], reverse=True)
         return result
 
@@ -208,9 +175,7 @@ class Searcher(object):
         for i in range(len(results)):
             res = results[i]
             for j in range(len(res)):
-                video_id, frame_id = results[i][j]["entity"]["frame_id"].split(
-                    "#"
-                )
+                video_id, frame_id = results[i][j]["entity"]["frame_id"].split("#")
                 video_id = video_id.replace("L", "").replace("_V", "")
                 video_id = int(video_id)
                 frame_id = int(frame_id)
@@ -233,9 +198,7 @@ class Searcher(object):
                 while l < len(best):
                     next_vid, next_fid = best[l]["_id"]
                     next_fid = int(next_fid)
-                    if next_vid > cur_vid or (
-                        next_vid == cur_vid and next_fid > cur_fid
-                    ):
+                    if next_vid > cur_vid or (next_vid == cur_vid and next_fid > cur_fid):
                         break
                     else:
                         l += 1
@@ -243,10 +206,7 @@ class Searcher(object):
                 while r < len(best):
                     next_vid, next_fid = best[r]["_id"]
                     next_fid = int(next_fid)
-                    if next_vid > cur_vid or (
-                        next_vid == cur_vid
-                        and next_fid > cur_fid + max_interval
-                    ):
+                    if next_vid > cur_vid or (next_vid == cur_vid and next_fid > cur_fid + max_interval):
                         break
                     else:
                         r += 1
@@ -260,10 +220,7 @@ class Searcher(object):
                     )
             highest = {}
             for cur in tmp:
-                if (
-                    cur["_id"] not in highest
-                    or cur["distance"] > highest[cur["_id"]]["distance"]
-                ):
+                if cur["_id"] not in highest or cur["distance"] > highest[cur["_id"]]["distance"]:
                     highest[cur["_id"]] = cur
             tmp = list(highest.values())
             tmp = sorted(tmp, key=lambda x: x["distance"], reverse=True)
@@ -271,12 +228,8 @@ class Searcher(object):
 
         return best
 
-    def _simple_search(
-        self, processed, filter, offset, limit, ef, nprobe, model
-    ):
-        text_features = (
-            self._models[model].get_text_features(processed["queries"]).tolist()
-        )
+    def _simple_search(self, processed, filter, offset, limit, ef, nprobe, model):
+        text_features = self._models[model].get_text_features(processed["queries"]).tolist()
         filter = self._combine_videos_filter(filter, processed["video_ids"])
 
         results = self._database.search(
@@ -296,9 +249,7 @@ class Searcher(object):
         return res
 
     def _combine_videos_filter(self, filter, video_ids):
-        video_ids_fitler = " || ".join(
-            [f'frame_id like "{x.strip()}#%"' for x in video_ids]
-        )
+        video_ids_fitler = " || ".join([f'frame_id like "{x.strip()}#%"' for x in video_ids])
         filter_empty = len(filter) == 0
         if len(video_ids) > 0:
             video_ids_fitler = "(" + video_ids_fitler + ")"
@@ -334,17 +285,11 @@ class Searcher(object):
         }
         self._logger.debug(processed)
         self._logger.debug(params)
-        query_hash = hashlib.sha256(
-            (f"complex:{repr(processed)}{repr(params)}").encode("utf-8")
-        ).hexdigest()
+        query_hash = hashlib.sha256((f"complex:{repr(processed)}{repr(params)}").encode("utf-8")).hexdigest()
         if query_hash in self.cache:
             combined_results = self.cache[query_hash]
         else:
-            text_features = (
-                self._models[model]
-                .get_text_features(processed["queries"])
-                .tolist()
-            )
+            text_features = self._models[model].get_text_features(processed["queries"]).tolist()
             filter = self._combine_videos_filter(filter, processed["video_ids"])
 
             st = time.time()
@@ -369,9 +314,7 @@ class Searcher(object):
                 )
 
             st = time.time()
-            combined_results = self._combine_temporal_results(
-                results, temporal_k, max_interval
-            )
+            combined_results = self._combine_temporal_results(results, temporal_k, max_interval)
             en = time.time()
             self._logger.debug(f"{en-st:.4f} seconds to combine results")
             self.cache[query_hash] = combined_results
@@ -388,18 +331,14 @@ class Searcher(object):
         return res
 
     def _get_videos(self, video_ids, offset, limit, selected):
-        query_hash = hashlib.sha256(
-            (f"video:{repr(video_ids)}").encode("utf-8")
-        ).hexdigest()
+        query_hash = hashlib.sha256((f"video:{repr(video_ids)}").encode("utf-8")).hexdigest()
 
         if query_hash in self.cache:
             videos = self.cache[query_hash]
         elif len(video_ids) == 0:
             videos = []
         else:
-            video_ids_fitler = " || ".join(
-                [f'frame_id like "{x.strip()}#%"' for x in video_ids]
-            )
+            video_ids_fitler = " || ".join([f'frame_id like "{x.strip()}#%"' for x in video_ids])
             videos = self._database.query(video_ids_fitler, 0, 10000)
             videos = sorted(videos, key=lambda x: x["frame_id"])
             videos = [{"entity": x} for x in videos]
@@ -440,14 +379,10 @@ class Searcher(object):
 
         if no_query and no_advance:
             self._logger.debug(f"Get videos: {q}")
-            res = self._get_videos(
-                processed["video_ids"], offset, limit, selected
-            )
+            res = self._get_videos(processed["video_ids"], offset, limit, selected)
         elif len(processed["queries"]) == 1 and no_advance:
             self._logger.debug(f"Simple search: {q}")
-            res = self._simple_search(
-                processed, filter, offset, limit, ef, nprobe, model
-            )
+            res = self._simple_search(processed, filter, offset, limit, ef, nprobe, model)
         else:
             self._logger.debug(f"Complex search: {q}")
             res = self._complex_search(
@@ -465,9 +400,7 @@ class Searcher(object):
                 max_interval,
             )
         end_time = time.time()
-        self._logger.debug(
-            f"Take {end_time - start_time:.4f} to extract and search"
-        )
+        self._logger.debug(f"Take {end_time - start_time:.4f} to extract and search")
         return res
 
     def search_similar(
@@ -485,9 +418,7 @@ class Searcher(object):
 
         image_features = [record[0][model]]
 
-        results = self._database.search(
-            image_features, "", offset, limit, ef, nprobe, model
-        )[0]
+        results = self._database.search(image_features, "", offset, limit, ef, nprobe, model)[0]
         res = {
             "results": results,
             "total": self._database.get_total(),
