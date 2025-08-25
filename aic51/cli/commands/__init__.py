@@ -1,5 +1,4 @@
 import os
-import sys
 import inspect
 from importlib import import_module
 from pkgutil import iter_modules
