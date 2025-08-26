@@ -13,6 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from aic51.packages.config import GlobalConfig
 from aic51.packages.logger import logger
 from aic51.packages.utils.files import get_path
+import aic51.packages.constant as constant
 
 from .command import BaseCommand
 
@@ -184,7 +185,7 @@ class AddCommand(BaseCommand):
         update_progress(description=f"Saving video", completed=0, total=1)
 
         video_id = video_path.stem
-        output_path = self._work_dir / "videos" / f"{video_id}{video_path.suffix}"
+        output_path = self._work_dir / constant.VIDEO_DIR / f"{video_id}{video_path.suffix}"
 
         if output_path.exists() and not do_overwrite:
             return 0, output_path, video_id
@@ -202,11 +203,11 @@ class AddCommand(BaseCommand):
     def _extract_keyframes(
         self, video_path: Path, do_overwrite: bool, do_audio: bool, do_clip: bool, update_progress: Callable
     ):
-        audio_path = self._work_dir / "audio" / f"{video_path.stem}.wav"
-        keyframe_dir = self._work_dir / "keyframes" / f"{video_path.stem}"
-        thumbnail_dir = self._work_dir / "thumbnails" / f"{video_path.stem}"
-        video_clips_dir = self._work_dir / "video_clips" / f"{video_path.stem}"
-        audio_clips_dir = self._work_dir / "audio_clips" / f"{video_path.stem}"
+        audio_path = self._work_dir / constant.AUDIO_DIR / f"{video_path.stem}.wav"
+        keyframe_dir = self._work_dir / constant.KEYFRAME_DIR / f"{video_path.stem}"
+        thumbnail_dir = self._work_dir / constant.THUMBNAIL_DIR / f"{video_path.stem}"
+        video_clips_dir = self._work_dir / constant.VIDEO_CLIP_DIR / f"{video_path.stem}"
+        audio_clips_dir = self._work_dir / constant.AUDIO_CLIP_DIR / f"{video_path.stem}"
 
         if keyframe_dir.exists():
             if do_overwrite:
@@ -218,8 +219,10 @@ class AddCommand(BaseCommand):
 
         keyframe_dir.mkdir(parents=True, exist_ok=True)
         thumbnail_dir.mkdir(parents=True, exist_ok=True)
-        video_clips_dir.mkdir(parents=True, exist_ok=True)
-        audio_clips_dir.mkdir(parents=True, exist_ok=True)
+        if do_clip:
+            video_clips_dir.mkdir(parents=True, exist_ok=True)
+            if do_audio:
+                audio_clips_dir.mkdir(parents=True, exist_ok=True)
 
         update_progress(description=f"Finding keyframes", completed=0, total=1)
         keyframes_list = self._get_keyframes_list(video_path)
@@ -363,7 +366,7 @@ class AddCommand(BaseCommand):
         return fps
 
     def _extract_audio(self, video_path: Path, do_overwrite: bool, update_progress: Callable):
-        audio_path = self._work_dir / "audio" / f"{video_path.stem}.wav"
+        audio_path = self._work_dir / constant.AUDIO_DIR / f"{video_path.stem}.wav"
 
         if audio_path.exists() and not do_overwrite:
             return
@@ -382,10 +385,10 @@ class AddCommand(BaseCommand):
         update_progress(advance=1)
 
     def _compress_video(self, video_id: str, update_progress: Callable):
-        video_path = self._work_dir / "videos" / f"{video_id}.mp4"
+        video_path = self._work_dir / constant.VIDEO_DIR / f"{video_id}.mp4"
         video_path = video_path.rename(video_path.parent / f"_{video_path.stem}.mp4")
 
-        output_path = self._work_dir / "videos" / f"{video_id}.mp4"
+        output_path = self._work_dir / constant.VIDEO_DIR / f"{video_id}.mp4"
         compress_size_rate = GlobalConfig.get("add", "compress_size_rate") or 0.5
 
         update_progress(description="Compress video", completed=0, total=1)

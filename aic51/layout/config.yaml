@@ -13,16 +13,42 @@ add:
   # Video compress ratio
   compress_size_rate: 0.5
 
-analyse:
-  features: &analyse_features
-    - name: "clip"
-      pretrained_model: "openai/clip-vit-base-patch32"
+
+features: &analyse_features
+  clipb32:
+    model: "image_clip"
+    source: "hf"
+    pretrained_model: "openai/clip-vit-base-patch32" 
+    analyse:
       batch_size: 16
-    - name: "ocr"
+    index:
+      datatype: "FLOAT_VECTOR"
+      metric_type: "IP"
+      index_type: "SCANN"
+      params:
+        nlist: 512
+  ocr:
+    model: "ocr"
+    pretrained_model: "tesseract"
+    analyse:
       batch_size: 8
-    - name: "yolo"
-      pretrained_model: "yolov8l-oiv7.pt"
-      batch_size: 16
+    index:
+      datatype: "JSON"
+      
+
+
+  # - name: "clip32"
+  #   model: "clip"
+  #   pretrained_model: "openai/clip-vit-base-patch32"
+  #   batch_size: 16
+  # - name: "ocr"
+  #   batch_size: 8
+  # - name: "yolo"
+  #   pretrained_model: "yolov8l-oiv7.pt"
+  #   batch_size: 16
+
+analyse:
+  # List of features to extract
   num_workers: 1
   pin_memory: true
 

@@ -29,6 +29,16 @@ class ImageDataset(Dataset):
 
 
 class FeatureExtractor(ABC):
+    @staticmethod
+    @abstractmethod
+    def require_input() -> Any:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def from_pretrained(*args, **kwargs) -> Any:
+        pass
+
     @abstractmethod
     def __init__(self, name: str, batch_size: int, device: str | torch.device, *args, **kwargs) -> None:
         self.name = name
@@ -36,7 +46,7 @@ class FeatureExtractor(ABC):
         self.to(device)
 
     @abstractmethod
-    def get_image_features(
+    def get_features(
         self,
         images: list[Path | str] | np.ndarray | torch.Tensor | list[Image.Image],
         callback: Optional[Callable] = None,
@@ -50,3 +60,22 @@ class FeatureExtractor(ABC):
     @abstractmethod
     def to(self, device: str | torch.device):
         pass
+
+class FeatureExtractorFactory:
+    __registry = {}
+
+    @staticmethod
+    def register(k: str):
+        def wrapper(extractor_cls):
+            if issubclass(extractor_cls, FeatureExtractor):
+                FeatureExtractorFactory.__registry[k] = extractor_cls
+            return extractor_cls
+
+        return wrapper
+
+    @staticmethod
+    def get(k: str) -> FeatureExtractor | None:
+        if k in FeatureExtractorFactory.__registry:
+            return FeatureExtractorFactory.__registry[k]
+        else:
+            return None

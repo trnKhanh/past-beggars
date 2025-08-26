@@ -27,6 +27,8 @@ dependencies = [
   "sentencepiece",
   "h5py",
   "jupyter",
+  "open_clip_torch",
+  "pytesseract",
 ]
 
 [project.scripts]

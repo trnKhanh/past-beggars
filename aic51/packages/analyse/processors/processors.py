@@ -18,4 +18,4 @@ class AnalyseProcessor:
     ):
         features = []
         for extractor in self._extractors:
-            feature = extractor.get_image_features(images, callback)
+            feature = extractor.get_features(images, callback)

@@ -7,7 +7,7 @@ from copy import deepcopy
 import torch
 from thefuzz import fuzz
 
-from aic51.packages.analyse.features.clip import CLIP
+from aic51.packages.analyse.features.image_clip import ImageCLIP as CLIP
 from aic51.packages.analyse.objects import Yolo
 from aic51.packages.config import GlobalConfig
 from aic51.packages.index import MilvusDatabase

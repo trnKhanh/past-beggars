@@ -1,1 +1,1 @@
-from .common import ImageDataset
+from .common import ImageDataset, VideoDataset
