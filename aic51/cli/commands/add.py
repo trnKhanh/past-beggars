@@ -15,6 +15,7 @@ import aic51.packages.constant as constant
 from aic51.packages.config import GlobalConfig
 from aic51.packages.logger import logger
 from aic51.packages.utils.files import get_path
+import aic51.packages.constant as constant
 
 from .command import BaseCommand
 
