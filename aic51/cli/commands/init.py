@@ -3,6 +3,8 @@ from pathlib import Path
 
 import aic51.resources as resources
 
+import aic51.resources as resources
+
 from .command import BaseCommand
 
 
