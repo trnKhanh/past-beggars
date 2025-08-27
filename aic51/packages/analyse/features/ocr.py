@@ -48,7 +48,7 @@ class Tesseract(OCR):
                 if isinstance(image, (str, Path)):
                     image = Image.open(image)
                 data = pytesseract.image_to_string(image, output_type=pytesseract.Output.DICT, lang="vie")
-                return data["text"]
+                return data["text"].lower()
 
             for b in range(num_batches):
                 futures = []

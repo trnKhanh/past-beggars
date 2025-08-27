@@ -1,191 +1,293 @@
 import hashlib
-import logging
 import re
 import time
 from copy import deepcopy
+from typing import Optional
 
 import torch
+from pymilvus import AnnSearchRequest, RRFRanker, WeightedRanker
 from thefuzz import fuzz
 
-from aic51.packages.analyse.features.image_clip import ImageCLIP as CLIP
+from aic51.packages.analyse import FeatureExtractorFactory
 from aic51.packages.analyse.objects import Yolo
 from aic51.packages.config import GlobalConfig
 from aic51.packages.index import MilvusDatabase
+from aic51.packages.logger import logger
+
+from . import constants
+from .utils import Query
 
 
 class Searcher(object):
     cache = {}
 
-    def __init__(self, collection_name, need_models=False):
-        self._logger = logging.getLogger("searcher")
+    def __init__(self, collection_name: str, device: torch.device = torch.device("cpu")):
         self._database = MilvusDatabase(collection_name)
-        self._models = {}
-        if need_models:
-            for model in GlobalConfig.get("webui", "features") or []:
-                model_name = model["name"].lower()
-                if model_name == "clip":
-                    pretrained_model = model["pretrained_model"]
-                    model = CLIP(pretrained_model)
+        self._prepare_feature_extractors(device)
 
-                    self._models[model_name] = model
-
-            if len(self._models) == 0:
-                self._logger.error(
-                    f'No models found in "{GlobalConfig.CONFIG_FILE}". Check your "{GlobalConfig.CONFIG_FILE}"'
-                )
+    def to(self, device):
+        self._device = torch.device(device)
+        for e in self._extractors.values():
+            e.to(device)
 
     def get(self, id):
         return self._database.get(id)
 
-    def get_models(self):
-        return list(self._models.keys())
+    @property
+    def features_extractor(self):
+        return list(self._extractors.keys())
 
-    def get_objects_classes(self):
-        return list(Yolo.classes_list().values())
+    @property
+    def target_features(self):
+        return list(self._features.keys())
 
-    def _process_query(self, query):
-        video_match = re.search("video:L\\d{2}_V\\d{3}", query, re.IGNORECASE)
-        video_ids = video_match.group()[len("video:") :].strip('" ').split(",") if video_match is not None else []
-        if video_match is not None:
-            query = query.replace(video_match.group(), "", 1)
+    @property
+    def support_ocr(self):
+        return self._ocr_name is not None
 
-        queries = query.split(";")
-        processed = {
-            "queries": [],
-            "advance": [],
-            "video_ids": video_ids,
+    def search_multimodal(
+        self,
+        q: str,
+        offset: int = 0,
+        limit: int = 50,
+        target_features: list = [],
+        /,
+        nprobe: int = 8,
+        temporal_k: int = 10000,
+        ocr_weight: float = 1.0,
+        max_interval: int = 250,
+        selected: str | None = None,
+    ):
+        start_time = time.time()
+        query = Query(q)
+
+        if query.simple:
+            logger.debug(f"searcher: get video_ids={query.video_ids}")
+            res = self._get_videos(query.video_ids, offset, limit, selected)
+        elif query.advance and not query.temporal:
+            logger.debug(f"searcher: advance_search query={query.data}")
+            res = self._advance_search(query, offset, limit, target_features, ocr_weight=ocr_weight, nprobe=nprobe)
+        else:
+            logger.debug(f"searcher: temporal_search query={query.data}")
+            res = self._temporal_search(
+                query,
+                offset,
+                limit,
+                target_features,
+                ocr_weight=ocr_weight,
+                nprobe=nprobe,
+                temporal_k=temporal_k,
+                max_interval=max_interval,
+            )
+
+        end_time = time.time()
+        logger.debug(f"searcher: Take {end_time - start_time:.4f} to extract and search")
+        return res
+
+    def search_image(
+        self,
+        id: str,
+        offset: int = 0,
+        limit: int = 50,
+        target_features: list = [],
+        /,
+        nprobe: int = 8,
+    ):
+        record = self._database.get(id)
+        if len(record) == 0:
+            return {"results": [], "total": 0, "offset": 0}
+
+        reqs = []
+
+        for target_name in target_features:
+            if target_name not in self._features:
+                logger.warning(f"searcher: {target_name} is invalid feature")
+                continue
+
+            target_param = {
+                "nprobe": nprobe,
+                "metric_type": "COSINE",
+            }
+
+            m = self._features[target_name]
+            image_embedding = record[0][target_name]
+
+            reqs.append(
+                AnnSearchRequest(
+                    data=[image_embedding],
+                    anns_field=target_name,
+                    param=target_param,
+                    limit=limit,
+                )
+            )
+
+        ranker = RRFRanker()
+
+        results = self._database.hybrid_search(
+            reqs,
+            ranker,
+            offset,
+            limit,
+        )[0]
+
+        res = {
+            "results": results,
+            "total": self._database.get_size(),
+            "offset": offset,
         }
-        for q in queries:
-            q = q.strip()
-            ocr = []
-            while True:
-                match = re.search('OCR:((".+?")|\\S+)\\s?', q, re.IGNORECASE)
-                if match is None:
-                    break
-                ocr.append(match.group()[len("ocr:") :].strip('" ').lower())
-                q = q.replace(match.group(), "")
-            objects = []
-            while True:
-                match = re.search('object:((".+?")|\\S+)\\s?', q, re.IGNORECASE)
-                if match is None:
-                    break
-                object_str = match.group().replace("object:", "", 1).strip('" ').lower()
-                object_parts = object_str.split("_")
-                bbox = [float(x) for x in object_parts[1].split(",")] if len(object_parts) > 1 else []
-                if len(bbox) > 4:
-                    bbox = bbox[:4]
-                while len(bbox) != 4:
-                    bbox.append(0 if len(bbox) < 2 else 1)
+        return res
 
-                objects.append([bbox, object_parts[0]])
+    def _similarity_search(
+        self,
+        query_features: dict,
+        offset: int = 0,
+        limit: int = 50,
+        target_features: list = [],
+        /,
+        ocr_weight: float = 0.5,
+        nprobe: int = 8,
+    ):
+        ocr_weight = max(0, min(1, ocr_weight))
 
-                q = q.replace(match.group(), "")
+        reqs = []
+        for target_name in target_features:
+            if target_name not in self._features:
+                logger.warning(f"searcher: {target_name} is invalid feature")
+                continue
 
-            processed["queries"].append(q)
-            processed["advance"].append({})
+            target_param = {
+                "nprobe": nprobe,
+                "metric_type": "COSINE",
+            }
 
-            if len(ocr) > 0:
-                processed["advance"][-1]["ocr"] = ocr
-            if len(objects) > 0:
-                processed["advance"][-1]["objects"] = objects
-        return processed
+            m = self._features[target_name]
+            text_embedding = self._extractors[m].get_text_features(query_features["text"])
 
-    def _process_advance(self, advance_query, result, ocr_weight, ocr_threshold, object_weight):
-        result = self._process_ocr(advance_query, result, ocr_weight, ocr_threshold)
-        result = self._process_objects(advance_query, result, object_weight)
-        return result
+            reqs.append(
+                AnnSearchRequest(
+                    data=[text_embedding],
+                    anns_field=target_name,
+                    param=target_param,
+                    limit=limit,
+                )
+            )
 
-    def _process_objects(self, advance_query, result, object_weight):
-        if "objects" not in advance_query:
-            return result
-        class_ids = dict([(v.lower(), int(k)) for k, v in Yolo.classes_list().items()])
-        query_objects = advance_query["objects"]
-        query_objects = [[x[0], class_ids[x[1]]] for x in query_objects if x[1] in class_ids]
+        weights = [(1 - ocr_weight) / len(reqs) for _ in reqs]
 
-        def cal_area(bbox):
-            if bbox[0] >= bbox[2] or bbox[1] >= bbox[3]:
-                return 0
-            return (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+        if self._ocr_name and "ocr" in query_features:
+            ocr_list = query_features["ocr"]
+            for ocr in ocr_list:
+                reqs.append(AnnSearchRequest(data=ocr, anns_field=self._ocr_name, param={}, limit=limit))
+                weights.append(ocr_weight / len(ocr_list))
 
-        def cal_IOU(bbox1, bbox2):
-            inter = [
-                max(bbox1[0], bbox2[0]),
-                max(bbox1[1], bbox2[1]),
-                min(bbox1[2], bbox2[2]),
-                min(bbox1[3], bbox2[3]),
-            ]
-            inter_area = cal_area(inter)
-            area1 = cal_area(bbox1)
-            area2 = cal_area(bbox2)
-            return inter_area / (area1 + area2 - inter_area)
+        ranker = WeightedRanker(*weights)
 
-        for i, record in enumerate(result):
-            record_objects = record["entity"]["yolo"] if "yolo" in record["entity"] else []
-            sum_distance = 0
-            cnt = 0
-            # format of each object: [bbox, cls, conf]
-            for query_object in query_objects:
-                max_distance = 0
-                for record_object in record_objects:
-                    query_class = int(query_object[1])
-                    record_class = int(record_object[1])
-                    if query_class != record_class:
-                        continue
-                    query_bbox = [float(x) for x in query_object[0]]
-                    record_bbox = [float(x) for x in record_object[0][0] + record_object[0][2]]
-                    iou = cal_IOU(query_bbox, record_bbox)
-                    record_conf = float(record_object[2])
-                    cur_distance = iou * record_conf
-                    max_distance = max(max_distance, cur_distance)
-                sum_distance += max_distance
-                if max_distance != 0:
-                    cnt += 1
-            result[i]["distance"] += object_weight * sum_distance / cnt if cnt > 0 else 0
-        result = sorted(result, key=lambda x: x["distance"], reverse=True)
-        return result
+        results = self._database.hybrid_search(
+            reqs,
+            ranker,
+            offset,
+            limit,
+        )[0]
+        return results
 
-    def _process_ocr(self, advance_query, result, ocr_weight, ocr_threshold):
-        if "ocr" not in advance_query:
-            return result
-        query_ocr = advance_query["ocr"]
-        for i, record in enumerate(result):
-            record_ocr = record["entity"]["ocr"] if "ocr" in record["entity"] else []
-            sum_distance = 0
-            cnt = 0
-            for query_text in query_ocr:
-                max_distance = 0
-                for record_text in record_ocr:
-                    record_bbox = [float(x) for x in record_text[0][0] + record_text[0][2]]
-                    if record_bbox[1] > 0.90:
-                        continue
-                    partial_ratio = fuzz.partial_ratio(query_text.lower(), record_text[1].lower())
-                    if partial_ratio > ocr_threshold:
-                        max_distance = max(max_distance, partial_ratio / 100)
+    def _advance_search(
+        self,
+        query: Query,
+        offset: int = 0,
+        limit: int = 50,
+        target_features: list = [],
+        /,
+        ocr_weight: float = 0.5,
+        nprobe: int = 8,
+    ):
+        query_features = query.data[0]["features"]
 
-                sum_distance += max_distance
-                if max_distance > 0:
-                    cnt += 1
+        results = self._similarity_search(
+            query_features, offset, limit, target_features, ocr_weight=ocr_weight, nprobe=nprobe
+        )
 
-            result[i]["distance"] += ocr_weight * sum_distance / cnt if cnt > 0 else 0
-        result = sorted(result, key=lambda x: x["distance"], reverse=True)
-        return result
+        res = {
+            "results": results,
+            "total": self._database.get_size(),
+            "offset": offset,
+        }
+        return res
 
-    def _combine_temporal_results(self, results, temporal_k, max_interval):
+    def _temporal_search(
+        self,
+        query: Query,
+        offset: int = 0,
+        limit: int = 50,
+        target_features: list = [],
+        /,
+        ocr_weight: float = 0.5,
+        nprobe: int = 8,
+        temporal_k: int = 100,
+        max_interval: int = 100,
+    ):
+        params = {
+            "query": query.data,
+            "filter": filter,
+            "target_features": target_features,
+            "ocr_weight": ocr_weight,
+            "nprobe": nprobe,
+            "temporal_k": temporal_k,
+            "max_interval": max_interval,
+        }
+        query_str = f"{constants.CACHE_TEMPORAL_SEARCH}:{repr(params)}"
+        query_hash = hashlib.sha256(query_str.encode("utf-8")).hexdigest()
+
+        if query_hash in self.cache:
+            temporal_results = self.cache[query_hash]
+        else:
+            st = time.time()
+            results_list = []
+            for q in query.data:
+                results = self._similarity_search(
+                    q["features"], 0, temporal_k, target_features, ocr_weight=ocr_weight, nprobe=nprobe
+                )
+                results_list.append(results)
+
+            en = time.time()
+            logger.debug(f"{en-st:.4f} seconds to search results")
+
+            st = time.time()
+            temporal_results = self._combine_temporal_results(results_list, max_interval)
+            en = time.time()
+            logger.debug(f"{en-st:.4f} seconds to combine results")
+
+            self.cache[query_hash] = temporal_results
+
+        if temporal_results is not None and offset < len(temporal_results):
+            results = temporal_results[offset : offset + limit]
+        else:
+            results = []
+
+        res = {
+            "results": results,
+            "total": len(temporal_results or []),
+            "offset": offset,
+        }
+        return res
+
+    def _combine_temporal_results(self, results_list: list, max_interval: int):
         best = None
-        for i in range(len(results)):
-            res = results[i]
+
+        for i in range(len(results_list)):
+            res = results_list[i]
             for j in range(len(res)):
-                video_id, frame_id = results[i][j]["entity"]["frame_id"].split("#")
+                video_id, frame_id = results_list[i][j]["entity"]["frame_id"].split("#")
                 video_id = video_id.replace("L", "").replace("_V", "")
                 video_id = int(video_id)
                 frame_id = int(frame_id)
-                results[i][j]["_id"] = (video_id, frame_id)
-                results[i][j]["distance"] = results[i][j]["distance"] ** (1 / 2)
+                results_list[i][j]["_id"] = (video_id, frame_id)
+                # results_list[i][j]["distance"] = results_list[i][j]["distance"] ** (1 / 2)
 
-        for res in results[::-1]:
+        for res in results_list[::-1]:
             if best is None:
-                best = res[:temporal_k]
+                best = res
                 continue
+
             tmp = []
             res = sorted(res, key=lambda x: x["_id"])
             best = sorted(best, key=lambda x: x["_id"])
@@ -193,145 +295,46 @@ class Searcher(object):
             r = 0
             for cur in res:
                 cur_vid, cur_fid = cur["_id"]
+
+                low_id = (cur_vid, cur_fid)
+                high_id = (cur_vid, cur_fid + max_interval)
+
                 cur_fid = int(cur_fid)
 
                 while l < len(best):
-                    next_vid, next_fid = best[l]["_id"]
-                    next_fid = int(next_fid)
-                    if next_vid > cur_vid or (next_vid == cur_vid and next_fid > cur_fid):
+                    next_id = best[l]["_id"]
+
+                    if next_id > low_id:
                         break
                     else:
                         l += 1
 
                 while r < len(best):
-                    next_vid, next_fid = best[r]["_id"]
-                    next_fid = int(next_fid)
-                    if next_vid > cur_vid or (next_vid == cur_vid and next_fid > cur_fid + max_interval):
+                    next_id = best[r]["_id"]
+
+                    if next_id > high_id:
                         break
                     else:
                         r += 1
 
-                for i in range(l, r):
+                if l < r:
+                    highest_distance = max([x["distance"] for x in best[l:r]])
+
                     tmp.append(
                         {
                             **cur,
-                            "distance": cur["distance"] + best[i]["distance"],
+                            "distance": cur["distance"] + highest_distance,
                         }
                     )
-            highest = {}
-            for cur in tmp:
-                if cur["_id"] not in highest or cur["distance"] > highest[cur["_id"]]["distance"]:
-                    highest[cur["_id"]] = cur
-            tmp = list(highest.values())
+
             tmp = sorted(tmp, key=lambda x: x["distance"], reverse=True)
-            best = tmp[:temporal_k]
+            best = tmp
 
         return best
 
-    def _simple_search(self, processed, filter, offset, limit, ef, nprobe, model):
-        text_features = self._models[model].get_text_features(processed["queries"]).tolist()
-        filter = self._combine_videos_filter(filter, processed["video_ids"])
-
-        results = self._database.search(
-            text_features,
-            filter,
-            offset,
-            limit,
-            ef,
-            nprobe,
-            model,
-        )[0]
-        res = {
-            "results": results,
-            "total": self._database.get_total(),
-            "offset": offset,
-        }
-        return res
-
-    def _combine_videos_filter(self, filter, video_ids):
-        video_ids_fitler = " || ".join([f'frame_id like "{x.strip()}#%"' for x in video_ids])
-        filter_empty = len(filter) == 0
-        if len(video_ids) > 0:
-            video_ids_fitler = "(" + video_ids_fitler + ")"
-            if not filter_empty:
-                video_ids_fitler = f"{filter} && {video_ids_fitler}"
-        return video_ids_fitler
-
-    def _complex_search(
-        self,
-        processed,
-        filter,
-        offset,
-        limit,
-        ef,
-        nprobe,
-        model,
-        temporal_k,
-        ocr_weight,
-        ocr_threshold,
-        object_weight,
-        max_interval,
-    ):
-        params = {
-            "filter": filter,
-            "ef": ef,
-            "nprobe": nprobe,
-            "model": model,
-            "temporal_k": temporal_k,
-            "ocr_weight": ocr_weight,
-            "ocr_threshold": ocr_threshold,
-            "object_weight": object_weight,
-            "max_interval": max_interval,
-        }
-        self._logger.debug(processed)
-        self._logger.debug(params)
-        query_hash = hashlib.sha256((f"complex:{repr(processed)}{repr(params)}").encode("utf-8")).hexdigest()
-        if query_hash in self.cache:
-            combined_results = self.cache[query_hash]
-        else:
-            text_features = self._models[model].get_text_features(processed["queries"]).tolist()
-            filter = self._combine_videos_filter(filter, processed["video_ids"])
-
-            st = time.time()
-            results = self._database.search(
-                text_features,
-                filter,
-                0,
-                temporal_k,
-                ef,
-                nprobe,
-                model,
-            )
-            en = time.time()
-            self._logger.debug(f"{en-st:.4f} seconds to search results")
-            for i in range(len(processed["queries"])):
-                results[i] = self._process_advance(
-                    processed["advance"][i],
-                    results[i],
-                    ocr_weight,
-                    ocr_threshold,
-                    object_weight,
-                )
-
-            st = time.time()
-            combined_results = self._combine_temporal_results(results, temporal_k, max_interval)
-            en = time.time()
-            self._logger.debug(f"{en-st:.4f} seconds to combine results")
-            self.cache[query_hash] = combined_results
-        if combined_results is not None and offset < len(combined_results):
-            results = combined_results[offset : offset + limit]
-        else:
-            results = []
-
-        res = {
-            "results": results,
-            "total": len(combined_results or []),
-            "offset": offset,
-        }
-        return res
-
-    def _get_videos(self, video_ids, offset, limit, selected):
-        query_hash = hashlib.sha256((f"video:{repr(video_ids)}").encode("utf-8")).hexdigest()
+    def _get_videos(self, video_ids: list[str], offset: int = 0, limit: int = 10000, selected: Optional[str] = None):
+        query_str = f"{constants.CACHE_GET_VIDEOS}:{repr(video_ids)}"
+        query_hash = hashlib.sha256(query_str.encode("utf-8")).hexdigest()
 
         if query_hash in self.cache:
             videos = self.cache[query_hash]
@@ -356,72 +359,51 @@ class Searcher(object):
         }
         return res
 
-    def search(
-        self,
-        q: str,
-        filter: str = "",
-        offset: int = 0,
-        limit: int = 50,
-        ef: int = 32,
-        nprobe: int = 8,
-        model: str = "clip",
-        temporal_k: int = 10000,
-        ocr_weight: float = 1.0,
-        ocr_threshold: int = 40,
-        object_weight: float = 1.0,
-        max_interval: int = 250,
-        selected: str | None = None,
-    ):
-        start_time = time.time()
-        processed = self._process_query(q)
-        no_query = all([len(x) == 0 for x in processed["queries"]])
-        no_advance = all([len(x) == 0 for x in processed["advance"]])
-
-        if no_query and no_advance:
-            self._logger.debug(f"Get videos: {q}")
-            res = self._get_videos(processed["video_ids"], offset, limit, selected)
-        elif len(processed["queries"]) == 1 and no_advance:
-            self._logger.debug(f"Simple search: {q}")
-            res = self._simple_search(processed, filter, offset, limit, ef, nprobe, model)
+    def _prepare_feature_extractors(self, device: torch.device):
+        self._extractors = {}
+        self._features = {}
+        if GlobalConfig.get("searcher", "ocr", "enable"):
+            self._ocr_name = GlobalConfig.get("searcher", "ocr", "ocr_field") or "ocr"
         else:
-            self._logger.debug(f"Complex search: {q}")
-            res = self._complex_search(
-                processed,
-                filter,
-                offset,
-                limit,
-                ef,
-                nprobe,
-                model,
-                temporal_k,
-                ocr_weight,
-                ocr_threshold,
-                object_weight,
-                max_interval,
-            )
-        end_time = time.time()
-        self._logger.debug(f"Take {end_time - start_time:.4f} to extract and search")
-        return res
+            self._ocr_name = None
 
-    def search_similar(
-        self,
-        id: str,
-        offset: int = 0,
-        limit: int = 50,
-        ef: int = 32,
-        nprobe: int = 8,
-        model: str = "clip",
-    ):
-        record = self._database.get(id)
-        if len(record) == 0:
-            return {"results": [], "total": 0, "offset": 0}
+        language_models = GlobalConfig.get("searcher", "language_models") or {}
 
-        image_features = [record[0][model]]
+        for m in language_models.keys():
+            source = GlobalConfig.get("searcher", "language_models", m, "source")
+            model_name = GlobalConfig.get("searcher", "language_models", m, "model")
+            arch_name = GlobalConfig.get("searcher", "language_models", m, "arch_name")
+            pretrained_model = GlobalConfig.get("searcher", "language_models", m, "pretrained_model")
+            target_features = GlobalConfig.get("searcher", "language_models", m, "target")
+            batch_size = 1
 
-        results = self._database.search(image_features, "", offset, limit, ef, nprobe, model)[0]
-        res = {
-            "results": results,
-            "total": self._database.get_total(),
-            "offset": offset,
-        }
-        return res
+            assert model_name is not None
+
+            feature_extractor_cls = FeatureExtractorFactory.get(model_name)
+            if feature_extractor_cls:
+                feature_extractor = feature_extractor_cls.from_pretrained(
+                    source=source,
+                    arch_name=arch_name,
+                    pretrained_model=pretrained_model,
+                    name=m,
+                    batch_size=batch_size,
+                    device=device,
+                )
+            else:
+                feature_extractor = None
+
+            polite_name = f"{model_name}" + (f' from "{pretrained_model}"' if pretrained_model else "")
+            if feature_extractor:
+                logger.info(f"Loaded {polite_name} for searching")
+            else:
+                logger.error(f"{polite_name}: invalid feature extractor")
+                continue
+
+            if target_features is None or len(target_features) == 0:
+                logger.error(f"{polite_name} does not have target features")
+                continue
+
+            for t in target_features:
+                self._features[t] = m
+
+            self._extractors[m] = {"feature_extractor": feature_extractor, "target_features": target_features}

@@ -3,13 +3,15 @@ import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
-from aic51.packages.analyse.objects import Yolo
+import aic51.packages.constant as constant
 from aic51.packages.config import GlobalConfig
 from aic51.packages.index import MilvusDatabase
+from aic51.packages.logger import logger
 
 from .command import BaseCommand
 
@@ -46,12 +48,13 @@ class IndexCommand(BaseCommand):
 
         parser.set_defaults(func=self)
 
-    def __call__(self, collection_name, do_overwrite, do_update, verbose, *args, **kwargs):
+    def __call__(self, collection_name: str, do_overwrite: bool, do_update: bool, verbose: bool, *args, **kwargs):
         MilvusDatabase.start_server()
+
         database = MilvusDatabase(collection_name, do_overwrite)
-        features_dir = self._work_dir / "features"
-        keyframes_dir = self._work_dir / "keyframes"
+
         max_workers_ratio = GlobalConfig.get("max_workers_ratio") or 0
+        max_workers = max(1, round(os.cpu_count() or 0) * max_workers_ratio)
         with (
             Progress(
                 TextColumn("{task.fields[name]}"),
@@ -60,82 +63,88 @@ class IndexCommand(BaseCommand):
                 TimeElapsedColumn(),
                 disable=not verbose,
             ) as progress,
-            ThreadPoolExecutor(round((os.cpu_count() or 0) * max_workers_ratio) or 1) as executor,
+            ThreadPoolExecutor(max_workers) as executor,
         ):
 
             def update_progress(task_id):
                 return lambda *args, **kwargs: progress.update(task_id, *args, **kwargs)
 
             def index_one_video(video_id):
-                task_id = progress.add_task(description="Processing...", name=video_id)
+                task_id = progress.add_task(description="Processing", name=video_id)
                 try:
-                    self._index_features(
+                    self._index_one_video(
                         database,
                         video_id,
                         do_update,
                         update_progress(task_id),
                     )
-                    progress.update(
-                        task_id,
-                        completed=1,
-                        total=1,
-                        description="Finished",
-                    )
                     progress.remove_task(task_id)
                 except Exception as e:
+                    logger.exception(e)
                     progress.update(task_id, description=f"Error: {str(e)}")
 
             futures = []
-            video_paths = sorted(
-                [d for d in features_dir.glob("*/") if d.is_dir()],
-                key=lambda path: path.stem,
-            )
+            video_paths = self._get_videos()
+
             for video_path in video_paths:
                 video_id = video_path.stem
                 futures.append(executor.submit(index_one_video, video_id))
+
             for future in futures:
                 future.result()
 
-    def _normalize_vector(self, feature):
-        norm = np.power(np.sum(np.power(feature, 2)), 0.5)
-        return feature / norm
+        database_size = database.get_size()
+        logger.info(f"Inserted {database_size} entities")
 
-    def _index_features(self, database, video_id, do_update, update_progress):
-        update_progress(description="Indexing...")
-        features_dir = self._work_dir / "features" / video_id
+    def _get_videos(self):
+        features_dir = self._work_dir / constant.FEATURE_DIR
+
+        video_paths = sorted(
+            [d for d in features_dir.glob("*") if d.is_dir()],
+            key=lambda path: path.stem,
+        )
+        return video_paths
+
+    def _index_one_video(self, database: MilvusDatabase, video_id: str, do_update: bool, update_progress: Callable):
+        video_features_dir = self._work_dir / constant.FEATURE_DIR / video_id
+
         data_list = []
-        feature_fields = [
-            x["field_name"] for x in GlobalConfig.get("milvus", "fields") or [] if x["field_name"] != "frame_id"
-        ]
-        for frame_path in features_dir.glob("*/"):
-            if not frame_path.is_dir():
-                continue
-            frame_id = frame_path.stem
+        feature_list = GlobalConfig.get("features") or {}
+        feature_fields = []
+        for feature_name in feature_list.keys():
+            if GlobalConfig.get("features", feature_name):
+                feature_fields.append(feature_name)
+
+
+        frame_features_paths = [x for x in video_features_dir.glob("*") if x.is_dir()]
+
+        update_progress(description="Indexing", completed=0, total=len(frame_features_paths))
+
+        for frame_features_path in frame_features_paths:
+            frame_id = frame_features_path.stem
             data = {
                 "frame_id": f"{video_id}#{frame_id}",  # This is because Milvus does not allow composite primary key
             }
-            for feature_path in frame_path.glob("*"):
-                if feature_path.stem not in feature_fields:
+            for feature_path in frame_features_path.glob("*"):
+                feature_name = feature_path.stem
+                if feature_name not in feature_fields:
                     continue
                 if feature_path.is_dir():
                     continue
-                if feature_path.suffix == ".npy":
-                    feature = np.load(feature_path)
-                    feature = self._normalize_vector(feature)
-                    assert np.sum(np.power(feature, 2)) <= 1 + 1e-3
-                elif feature_path.suffix == ".txt":
-                    with open(feature_path, "r") as f:
-                        feature = f.read()
-                        feature = feature.lower()
-                elif feature_path.suffix == ".json":
-                    with open(feature_path, "r") as f:
-                        feature = json.load(f)
-                else:
-                    continue
-                data = {
-                    **data,
-                    f"{feature_path.stem}": feature,
-                }
-            data_list.append(data)
+
+                feature = np.load(feature_path)
+
+                if feature.dtype.kind == "U":
+                    feature = feature.tolist()
+
+
+                data[feature_name] = feature
+
+            if all([f in data for f in feature_fields]):
+                data_list.append(data)
+            else:
+                logger.warning(f"Skipping {data['frame_id']}: Lack of features")
+
+            update_progress(advance=1)
 
         database.insert(data_list, do_update)
