@@ -41,7 +41,7 @@ def main():
 
     args = vars(args)
     command = args.pop("command")
-    dev_mode = args.pop("dev_mode")
+    dev_mode = args.get("dev_mode")
     if dev_mode:
         logger.setLevel(logging.INFO)
 

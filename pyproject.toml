@@ -10,15 +10,15 @@ readme = {file = "README.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
 dependencies = [
   "rich",
-  "torch==2.4.0", 
-  "torchvision==0.19.0",
+  "torch", 
+  "torchvision",
   "numpy==1.26.4",
-  "transformers==4.44.2",
-  "python-dotenv==1.0.1",
-  "pyyaml==6.0.2",
-  "opencv-python==4.10.0.84",
-  "pillow==10.4.0",
-  "pymilvus==2.6.0",
+  "transformers",
+  "python-dotenv",
+  "pyyaml",
+  "opencv-python",
+  "pillow",
+  "pymilvus>=2.6.0",
   "fastapi",
   "uvicorn",
   "easyocr",
@@ -29,6 +29,7 @@ dependencies = [
   "jupyter",
   "open_clip_torch",
   "pytesseract",
+  "apscheduler"
 ]
 
 [project.scripts]

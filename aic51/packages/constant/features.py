@@ -1,1 +1,3 @@
 NUM_FRAMES_VIDEO_FEATURE = 8
+
+FPS_KEY = "frame_rate"

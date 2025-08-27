@@ -86,21 +86,33 @@ searcher:
     ocr_field: "ocr"
     enable: true
 
+frontend:
+  dev_port: 12345
 
 backends:
-  # Name of collection to use
-  database: "milvus"
-  workers: 1
+  core:
+    port: 6900
+    search_proxy:
+      request_timeout: null
+      max_concurrent_requests: 10
+      servers:
+        - host: http://127.0.0.1:1337
+    file_proxy:
+      request_timeout: null
+      max_concurrent_requests: 10
+      servers:
+        - host: http://127.0.0.1:4200
+
   search:
-    timeout: null
-    request_size: 10
+    port: 1337
+    # Name of collection to use
+    collection: "milvus"
     workers: 1
-    backends:
-      - host: http://127.0.0.1:5010
-  video:
-    timeout: null
-    request_size: 10
+    gpu: true
+
+  file:
+    port: 4200
     workers: 1
-    backends:
-      - host: http://127.0.0.1:5011
+
+
 
