@@ -42,15 +42,22 @@ def process_searcher_results(searcher_res: dict):
         data = record["entity"]
         record_id = data["frame_id"]  # <video_id>#<frame_id>
         video_id, frame_id = record_id.split("#")
+
+        if "time_line" in record:
+            time_line = record["time_line"]
+        else:
+            time_line = [frame_id]
+
         fps = get_fps(video_id)
 
         frames.append(
-            dict(
-                id=record_id,
-                video_id=video_id,
-                frame_id=frame_id,
-                fps=fps,
-            )
+            {
+                "id": record_id,
+                "video_id": video_id,
+                "frame_id": frame_id,
+                "time_line": time_line,
+                "fps": fps,
+            }
         )
 
     return {

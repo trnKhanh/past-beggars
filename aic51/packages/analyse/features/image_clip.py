@@ -100,11 +100,16 @@ class ImageHFCLIP(ImageCLIP):
         return image_features.cpu().numpy()
 
     def get_text_features(self, texts: list[str] | str | np.ndarray, callback: Optional[Callable] = None) -> Any:
+        if isinstance(texts, np.ndarray):
+            texts = list(texts.tolist())
+        if isinstance(texts, str):
+            texts = [texts]
+
         tokenized_input = self._processor(text=texts, return_tensors="pt", padding=True).to(self._device)
         with torch.no_grad():
             text_features = self._model.get_text_features(**tokenized_input)
             text_features /= text_features.norm(dim=-1, keepdim=True)
-        return text_features
+        return text_features.cpu().numpy()
 
     def to(self, device: str | torch.device):
         self._device = torch.device(device)
@@ -196,7 +201,7 @@ class ImageOpenCLIP(ImageCLIP):
             text_features = self._model.encode_text(tokenized_input)
             text_features /= text_features.norm(dim=-1, keepdim=True)
 
-        return text_features
+        return text_features.cpu().numpy()
 
     def to(self, device: str | torch.device):
         self._device = torch.device(device)

@@ -1,6 +1,8 @@
 import re
 from copy import deepcopy
 
+import aic51.packages.constant as global_constant
+
 from . import constants
 
 
@@ -52,7 +54,7 @@ class Query:
         self._queries = processed_queries
 
     def _extract_video_ids(self):
-        pattern = r"\[\[{}:L\d{2}_V\d{3}\]\]".format(constants.QUERY_VIDEO_KEY)
+        pattern = global_constant.VIDEO_QUERY_PATTERN
         video_match = re.search(pattern, self._query, re.IGNORECASE)
         if video_match:
             video_str = video_match.group()
@@ -60,15 +62,15 @@ class Query:
             video_ids_str = ":".join(video_str.split(":")[1:])
 
             self._video_ids = video_ids_str.split(",")
-            self._query.replace(video_match.group(), "", 1)
+            self._query = self._query.replace(video_match.group(), "", 1)
 
     def _extract_ocr(self, query: str):
-        new_query = deepcopy(query).lower()
+        new_query = deepcopy(query)
 
-        pattern = r'\[\[{}:((".+?")|\S+)\s?\]\]'.format(constants.QUERY_OCR_KEY)
+        pattern = global_constant.OCR_QUERY_PATTERN
         ocr_list = []
         while True:
-            ocr_match = re.search(pattern, query, re.IGNORECASE)
+            ocr_match = re.search(pattern, new_query, re.IGNORECASE)
             if not ocr_match:
                 break
 
@@ -76,27 +78,8 @@ class Query:
             ocr_str = ocr_str.strip("[]")
             ocr = ":".join(ocr_str.split(":")[1:])
 
-            ocr_list.append(ocr)
-            query.replace(ocr_match.group(), "", 1)
-
-        return new_query, ocr_list
-
-    def _extract_video(self, query: str):
-        new_query = deepcopy(query).lower()
-
-        pattern = r'\[\[{}:((".+?")|\S+)\s?\]\]'.format(constants.QUERY_OCR_KEY)
-        ocr_list = []
-        while True:
-            ocr_match = re.search(pattern, query, re.IGNORECASE)
-            if not ocr_match:
-                break
-
-            ocr_str = ocr_match.group()
-            ocr_str = ocr_str.strip("[]")
-            ocr = ":".join(ocr_str.split(":")[1:])
-
-            ocr_list.append(ocr)
-            query.replace(ocr_match.group(), "", 1)
+            ocr_list.append(ocr.lower())
+            new_query = new_query.replace(ocr_match.group(), "", 1)
 
         return new_query, ocr_list
 
@@ -106,7 +89,7 @@ class Query:
     def _parse_one_query(self, q):
         raw = deepcopy(q["raw"]).strip()
 
-        raw, ocr_list = self._extract_ocr(q)
+        raw, ocr_list = self._extract_ocr(raw)
 
         raw = raw.strip()
 

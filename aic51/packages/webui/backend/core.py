@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -27,7 +26,7 @@ FILE_MAX_REQUESTS = int(GlobalConfig.get("backends", "core", "file_proxy", "max_
 
 TARGET_FEATURES_SYNC_INTEVAL = int(GlobalConfig.get("backends", "core", "search_proxy", "sync_interval") or 5)
 
-TARGET_FEATURES = []
+internal = {}
 target_features_lock = asyncio.Lock()
 
 
@@ -49,22 +48,24 @@ async def sync_target_features():
                     if res and res.ok:
                         data = res.json()
                         if constant.TARGET_FEATURES_KEY in data:
-                            target_features.union(data[constant.TARGET_FEATURES_KEY])
+                            target_features.update(data[constant.TARGET_FEATURES_KEY])
 
-            except:
+            except Exception as e:
+                logger.exception(e)
                 target_features = []
 
-            TARGET_FEATURES = list(target_features)
+            internal["target_features"] = list(target_features)
+
         await asyncio.sleep(TARGET_FEATURES_SYNC_INTEVAL)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # sync_task = asyncio.ensure_future(sync_target_features())
+    sync_task = asyncio.ensure_future(sync_target_features())
 
     yield
 
-    # sync_task.cancel()
+    sync_task.cancel()
 
 
 app = create_app(lifespan=lifespan)
@@ -151,7 +152,9 @@ async def target_features():
 
         return JSONResponse(
             status_code=200,
-            content=jsonable_encoder({constant.MESSAGE_KEY: "success", constant.TARGET_FEATURES_KEY: TARGET_FEATURES}),
+            content=jsonable_encoder(
+                {constant.MESSAGE_KEY: "success", constant.TARGET_FEATURES_KEY: internal["target_features"]}
+            ),
         )
 
 

@@ -9,6 +9,7 @@ import torch
 from PIL import Image
 
 import aic51.packages.constant as constant
+from aic51.packages.logger import logger
 
 from .feature_extractor import FeatureExtractor, FeatureExtractorFactory
 
@@ -45,9 +46,14 @@ class Tesseract(OCR):
         with ThreadPoolExecutor(self._batch_size) as executor:
 
             def process_one_image(image):
+                name = image.stem
                 if isinstance(image, (str, Path)):
                     image = Image.open(image)
+                    width, height = image.size
+                    image = image.crop((0, 0, width, round(height * 8 / 9)))
+
                 data = pytesseract.image_to_string(image, output_type=pytesseract.Output.DICT, lang="vie")
+
                 return data["text"].lower()
 
             for b in range(num_batches):

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
@@ -20,12 +21,12 @@ def setup_searcher():
     return Searcher(collection_name, device)
 
 
-searcher = None
+internal = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    seacher = setup_searcher()
+    internal["searcher"] = setup_searcher()
 
     yield
 
@@ -35,7 +36,10 @@ app = create_app(lifespan=lifespan)
 
 @app.get(constant.HEALTH_ENDPOINT)
 async def health():
-    return Response(status_code=200)
+    if "searcher" in internal:
+        return JSONResponse(status_code=200, content=jsonable_encoder({constant.MESSAGE_KEY: "alive"}))
+    else:
+        return JSONResponse(status_code=500, content=jsonable_encoder({constant.MESSAGE_KEY: "dead"}))
 
 
 @app.get(constant.SEARCH_MULTIMODAL_ENDPOINT)
@@ -44,19 +48,20 @@ async def search_multimodal(
     q: str,
     offset: int = 0,
     limit: int = 50,
-    target_features: list = [],
-    /,
+    target_features: Annotated[list[str], Query()] = [],
     nprobe: int = 8,
     temporal_k: int = 10000,
     ocr_weight: float = 1.0,
     max_interval: int = 250,
     selected: str | None = None,
 ):
-    if searcher is None:
+    if "searcher" not in internal:
         return JSONResponse(
             status_code=500,
             content=jsonable_encoder({constant.MESSAGE_KEY: "searcher was not initialized"}),
         )
+
+    searcher = internal["searcher"]
 
     try:
         searcher_res = searcher.search_multimodal(
@@ -100,18 +105,19 @@ async def search_image(
     q: str,
     offset: int = 0,
     limit: int = 50,
-    target_features: list = [],
-    /,
+    target_features: Annotated[list[str], Query()] = [],
     nprobe: int = 8,
     temporal_k: int = 10000,
     ocr_weight: float = 1.0,
     max_interval: int = 250,
 ):
-    if searcher is None:
+    if "searcher" not in internal:
         return JSONResponse(
             status_code=500,
             content=jsonable_encoder({constant.MESSAGE_KEY: "searcher was not initialized"}),
         )
+
+    searcher = internal["searcher"]
 
     try:
         searcher_res = searcher.search_image(
@@ -147,11 +153,13 @@ async def search_image(
 
 @app.get(constant.TARGET_FEATURES_ENDPOINT)
 async def target_features():
-    if searcher is None:
+    if "searcher" not in internal:
         return JSONResponse(
             status_code=500,
             content=jsonable_encoder({constant.MESSAGE_KEY: "searcher was not initialized"}),
         )
+
+    searcher = internal["searcher"]
 
     return JSONResponse(
         status_code=200,

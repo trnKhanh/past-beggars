@@ -173,7 +173,7 @@ class AnalyseCommand(BaseCommand):
 
                 assert isinstance(feature, np.ndarray)
 
-                np.save(keyframe_save_dir / f"{feature_extractor.name}.npy", features[i])
+                np.save(keyframe_save_dir / f"{feature_extractor.name}.npy", feature)
                 progress.update(task_id, advance=1)
 
             progress.remove_task(task_id)

@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from fastapi import Header, Request, Response
-from fastapi.responses import FileResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import FileResponse, JSONResponse
 
 import aic51.packages.constant as constant
 from aic51.packages.logger import logger
@@ -15,23 +16,23 @@ app = create_app()
 async def frame_health(request: Request, video_id: str, frame_id: str):
     file_path = Path.cwd() / f"{constant.THUMBNAIL_DIR}/{video_id}/{frame_id}{constant.IMAGE_EXTENSION}"
     if file_path.exists() and not file_path.is_dir():
-        return Response(status_code=200)
+        return JSONResponse(status_code=200, content=jsonable_encoder({constant.MESSAGE_KEY: "available"}))
     else:
-        return Response(status_code=404)
+        return JSONResponse(status_code=404, content=jsonable_encoder({constant.MESSAGE_KEY: "unavailable"}))
 
 
 @app.get(constant.HEALTH_ENDPOINT + "/{video_id}")
 async def video_health(request: Request, video_id: str):
     file_path = Path.cwd() / f"{constant.VIDEO_DIR}/{video_id}{constant.VIDEO_EXTENSION}"
     if file_path.exists() and not file_path.is_dir():
-        return Response(status_code=200)
+        return JSONResponse(status_code=200, content=jsonable_encoder({constant.MESSAGE_KEY: "available"}))
     else:
-        return Response(status_code=404)
+        return JSONResponse(status_code=404, content=jsonable_encoder({constant.MESSAGE_KEY: "unavailable"}))
 
 
 @app.get(constant.HEALTH_ENDPOINT)
 async def health(request: Request):
-    return Response(status_code=200)
+    return JSONResponse(status_code=200, content=jsonable_encoder({constant.MESSAGE_KEY: "alive"}))
 
 
 @app.get(constant.FILE_INFO_ENDPOINT + "/{video_id}/{frame_id}")
@@ -53,7 +54,7 @@ async def get_file(request: Request, video_id: str, frame_id: str):
     if file_path.exists() and not file_path.is_dir():
         return FileResponse(file_path)
     else:
-        return Response(status_code=404)
+        return JSONResponse(status_code=404, content=jsonable_encoder({constant.MESSAGE_KEY: "unavailable"}))
 
 
 CHUNK_SIZE = 1024 * 1024
@@ -63,7 +64,7 @@ CHUNK_SIZE = 1024 * 1024
 async def get_video(request: Request, video_id: str, range: str = Header(None)):
     file_path = Path.cwd() / f"{constant.VIDEO_DIR}/{video_id}{constant.VIDEO_EXTENSION}"
     if not file_path.exists() or file_path.is_dir():
-        return Response(status_code=404)
+        return JSONResponse(status_code=404, content=jsonable_encoder({constant.MESSAGE_KEY: "unavailable"}))
 
     start, end = range.replace("bytes=", "").split("-")
     start = int(start)

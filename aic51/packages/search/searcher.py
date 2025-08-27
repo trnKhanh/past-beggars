@@ -59,7 +59,10 @@ class Searcher(object):
         selected: str | None = None,
     ):
         start_time = time.time()
+        logger.info(q)
         query = Query(q)
+        logger.info(query.video_ids)
+        logger.info(query.data)
 
         if query.simple:
             logger.debug(f"searcher: get video_ids={query.video_ids}")
@@ -137,9 +140,14 @@ class Searcher(object):
         }
         return res
 
+    def _get_video_filter(self, video_ids: list[str]):
+        video_ids_fitler = " || ".join([f'frame_id like "{x.strip()}#%"' for x in video_ids])
+        return video_ids_fitler
+
     def _similarity_search(
         self,
         query_features: dict,
+        video_ids: list[str],
         offset: int = 0,
         limit: int = 50,
         target_features: list = [],
@@ -148,46 +156,63 @@ class Searcher(object):
         nprobe: int = 8,
     ):
         ocr_weight = max(0, min(1, ocr_weight))
+        video_filter = self._get_video_filter(video_ids)
 
         reqs = []
-        for target_name in target_features:
-            if target_name not in self._features:
-                logger.warning(f"searcher: {target_name} is invalid feature")
-                continue
+        if "text" in query_features:
+            for target_name in target_features:
+                if target_name not in self._features:
+                    logger.warning(f"searcher: {target_name} is invalid feature")
+                    continue
 
-            target_param = {
-                "nprobe": nprobe,
-                "metric_type": "COSINE",
-            }
+                target_param = {
+                    "nprobe": nprobe,
+                    "metric_type": "COSINE",
+                }
 
-            m = self._features[target_name]
-            text_embedding = self._extractors[m].get_text_features(query_features["text"])
-
-            reqs.append(
-                AnnSearchRequest(
-                    data=[text_embedding],
-                    anns_field=target_name,
-                    param=target_param,
-                    limit=limit,
+                m = self._features[target_name]
+                text_embedding = (
+                    self._extractors[m]["feature_extractor"].get_text_features(query_features["text"]).tolist()[0]
                 )
-            )
+
+                reqs.append(
+                    AnnSearchRequest(
+                        data=[text_embedding],
+                        anns_field=target_name,
+                        param=target_param,
+                        limit=limit,
+                        expr=video_filter,
+                    )
+                )
 
         weights = [(1 - ocr_weight) / len(reqs) for _ in reqs]
 
         if self._ocr_name and "ocr" in query_features:
             ocr_list = query_features["ocr"]
             for ocr in ocr_list:
-                reqs.append(AnnSearchRequest(data=ocr, anns_field=self._ocr_name, param={}, limit=limit))
+                reqs.append(
+                    AnnSearchRequest(
+                        data=[ocr],
+                        anns_field=self._ocr_name,
+                        param={},
+                        limit=limit,
+                        expr=video_filter,
+                    )
+                )
                 weights.append(ocr_weight / len(ocr_list))
 
         ranker = WeightedRanker(*weights)
 
-        results = self._database.hybrid_search(
-            reqs,
-            ranker,
-            offset,
-            limit,
-        )[0]
+        if len(reqs) > 0:
+            results = self._database.hybrid_search(
+                reqs,
+                ranker,
+                offset,
+                limit,
+            )[0]
+        else:
+            results = []
+
         return results
 
     def _advance_search(
@@ -202,13 +227,21 @@ class Searcher(object):
     ):
         query_features = query.data[0]["features"]
 
-        results = self._similarity_search(
-            query_features, offset, limit, target_features, ocr_weight=ocr_weight, nprobe=nprobe
-        )
+        if len(query.video_ids) > 0:
+            results = self._similarity_search(
+                query_features, query.video_ids, 0, 10000, target_features, ocr_weight=ocr_weight, nprobe=nprobe
+            )
+            total = len(results)
+            results = results[offset : offset + limit]
+        else:
+            results = self._similarity_search(
+                query_features, [], offset, limit, target_features, ocr_weight=ocr_weight, nprobe=nprobe
+            )
+            total = self._database.get_size()
 
         res = {
             "results": results,
-            "total": self._database.get_size(),
+            "total": total,
             "offset": offset,
         }
         return res
@@ -244,7 +277,7 @@ class Searcher(object):
             results_list = []
             for q in query.data:
                 results = self._similarity_search(
-                    q["features"], 0, temporal_k, target_features, ocr_weight=ocr_weight, nprobe=nprobe
+                    q["features"], query.video_ids, 0, temporal_k, target_features, ocr_weight=ocr_weight, nprobe=nprobe
                 )
                 results_list.append(results)
 
@@ -277,11 +310,8 @@ class Searcher(object):
             res = results_list[i]
             for j in range(len(res)):
                 video_id, frame_id = results_list[i][j]["entity"]["frame_id"].split("#")
-                video_id = video_id.replace("L", "").replace("_V", "")
-                video_id = int(video_id)
-                frame_id = int(frame_id)
-                results_list[i][j]["_id"] = (video_id, frame_id)
-                # results_list[i][j]["distance"] = results_list[i][j]["distance"] ** (1 / 2)
+                results_list[i][j]["_id"] = (video_id, int(frame_id))
+                results_list[i][j]["time_line"] = [frame_id]
 
         for res in results_list[::-1]:
             if best is None:
@@ -318,17 +348,19 @@ class Searcher(object):
                         r += 1
 
                 if l < r:
-                    highest_distance = max([x["distance"] for x in best[l:r]])
-
-                    tmp.append(
-                        {
-                            **cur,
-                            "distance": cur["distance"] + highest_distance,
-                        }
-                    )
+                    for next in best[l:r]:
+                        _, cur_fid = cur["_id"]
+                        tmp.append(
+                            {
+                                **cur,
+                                "distance": cur["distance"] + next["distance"],
+                                "time_line": [*cur["time_line"], *next["time_line"]],
+                            }
+                        )
 
             tmp = sorted(tmp, key=lambda x: x["distance"], reverse=True)
             best = tmp
+            logger.info(best)
 
         return best
 
