@@ -1,6 +1,7 @@
 import { useLoaderData, Outlet } from "react-router-dom";
 
 import VideoProvider from "../components/VideoPlayer.jsx";
+import SelectedProvider from "../components/SelectedProvider.jsx";
 
 import AnswerSidebar from "../components/Answer.jsx";
 import SearchParams from "../components/SearchParams.jsx";
@@ -13,16 +14,18 @@ export async function loader() {
 export default function Root() {
   const { modelOptions } = useLoaderData();
   return (
-    <VideoProvider>
-      <div className="flex flex-row">
-        <div className="flex flex-col">
-          <SearchParams modelOptions={modelOptions} />
-          <div className="w-96">
-            <AnswerSidebar />
+    <SelectedProvider>
+      <VideoProvider>
+        <div className="flex flex-row">
+          <div className="flex flex-col">
+            <SearchParams modelOptions={modelOptions} />
+            <div className="w-96">
+              <AnswerSidebar />
+            </div>
           </div>
+          <Outlet context={{ modelOptions }} />
         </div>
-        <Outlet context={{ modelOptions }} />
-      </div>
-    </VideoProvider>
+      </VideoProvider>
+    </SelectedProvider>
   );
 }

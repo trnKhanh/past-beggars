@@ -1,6 +1,7 @@
 import { useFetcher } from "react-router-dom";
 import { createContext, useEffect, useContext, useState, useRef } from "react";
 import { AuthContext } from "./AuthProvider";
+import { useSelected } from "./SelectedProvider.jsx";
 import { getFrameInfo } from "../services/search.js";
 export const VideoContext = createContext({ playVideo: null });
 
@@ -32,6 +33,7 @@ export function usePlayVideo() {
 }
 function VideoPlayer({ frameInfo, onCancle }) {
   const { evaluationIds, submitAnswer } = useContext(AuthContext);
+  const { selected } = useSelected();
   const fetcher = useFetcher({ key: "answers" });
   const videoElementRef = useRef(null);
   const [frameCounter, setFrameCounter] = useState(0);
@@ -44,38 +46,80 @@ function VideoPlayer({ frameInfo, onCancle }) {
     videoElement.focus();
 
     const handleKeyDown = (e) => {
-      if (e.keyCode !== 27 && document.activeElement !== videoElement) return;
+      const isInInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+      
       switch (e.keyCode) {
-        case 27:
+        case 27: // Escape - close video player
           onCancle();
           return;
-        case 13:
-          document.querySelector("#answer-form input").focus();
+        case 13: // Enter - focus answer input or shift+enter to submit
+          if (e.shiftKey) {
+            e.preventDefault();
+            document.querySelector("#answer-form input[type=submit]").click();
+          } else if (!isInInput) {
+            document.querySelector("#answer-form input[name=answer]").focus();
+          }
           return;
-        case 75:
-          if (videoElement.paused) videoElement.play();
-          else videoElement.pause();
+        case 191: // Shift + / - Jump to answer
+          if (e.shiftKey) {
+            e.preventDefault();
+            document.querySelector("#answer-form input[name=answer]").focus();
+          }
           return;
-        case 219:
-          videoElement.currentTime = Math.max(videoElement.currentTime - 1, 0);
-          return false;
-        case 221:
-          videoElement.currentTime = Math.min(
-            videoElement.currentTime + 1,
-            videoElement.duration,
-          );
+        case 75: // K - Play/pause
+          if (!isInInput) {
+            e.preventDefault();
+            if (videoElement.paused) videoElement.play();
+            else videoElement.pause();
+          }
           return;
-        case 189:
-          videoElement.playbackRate = Math.max(
-            videoElement.playbackRate - 0.5,
-            1,
-          );
+        case 37: // Left arrow - Go 5s back
+          if (!isInInput) {
+            e.preventDefault();
+            videoElement.currentTime = Math.max(videoElement.currentTime - 5, 0);
+          }
           return;
-        case 187:
-          videoElement.playbackRate = Math.min(
-            videoElement.playbackRate + 0.5,
-            10,
-          );
+        case 39: // Right arrow - Go 5s forward
+          if (!isInInput) {
+            e.preventDefault();
+            videoElement.currentTime = Math.min(
+              videoElement.currentTime + 5,
+              videoElement.duration,
+            );
+          }
+          return;
+        case 219: // [ - Go frame by frame back
+          if (!isInInput) {
+            e.preventDefault();
+            videoElement.currentTime = Math.max(videoElement.currentTime - 1/fps, 0);
+          }
+          return;
+        case 221: // ] - Go frame by frame forward
+          if (!isInInput) {
+            e.preventDefault();
+            videoElement.currentTime = Math.min(
+              videoElement.currentTime + 1/fps,
+              videoElement.duration,
+            );
+          }
+          return;
+        case 189: // - - Decrease speed
+          if (!isInInput) {
+            e.preventDefault();
+            videoElement.playbackRate = Math.max(
+              videoElement.playbackRate - 0.25,
+              0.25,
+            );
+          }
+          return;
+        case 187: // + - Increase speed
+          if (!isInInput) {
+            e.preventDefault();
+            videoElement.playbackRate = Math.min(
+              videoElement.playbackRate + 0.25,
+              4,
+            );
+          }
           return;
       }
     };

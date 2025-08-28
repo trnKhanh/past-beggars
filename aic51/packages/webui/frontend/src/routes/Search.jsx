@@ -12,6 +12,7 @@ import { search } from "../services/search.js";
 import { FrameItem, FrameContainer } from "../components/Frame.jsx";
 import { usePlayVideo } from "../components/VideoPlayer.jsx";
 import { AdvanceQueryContainer } from "../components/AdvanceQuery.jsx";
+import { useSelected } from "../components/SelectedProvider.jsx";
 import PreviousButton from "../assets/previous-btn.svg";
 import NextButton from "../assets/next-btn.svg";
 import HomeButton from "../assets/home-btn.svg";
@@ -84,7 +85,7 @@ export default function Search() {
   const { query, params, offset, data, selected } = useLoaderData();
   console.log(params);
   const playVideo = usePlayVideo();
-  const [selectedFrame, setSelectedFrame] = useState(null);
+  const { getSelectedForSubmit, clearSelected } = useSelected();
 
   const { q = "", id = null } = query;
   const { limit, nprobe, model } = params;
@@ -124,14 +125,64 @@ export default function Search() {
   useEffect(() => {
     document.title = q + `(${Math.floor(offset / limit) + 1})`;
     const handleKeyDown = (e) => {
+      const isInInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+      
       switch (e.keyCode) {
-        case 38:
+        case 38: // Up arrow - Previous page
           e.preventDefault();
           goToPreviousPage();
           return;
-        case 40:
+        case 40: // Down arrow - Next page
           e.preventDefault();
           goToNextPage();
+          return;
+        case 37: // Left arrow - Go 5s back (placeholder for video)
+          if (!isInInput) {
+            e.preventDefault();
+          }
+          return;
+        case 39: // Right arrow - Go 5s forward (placeholder for video)
+          if (!isInInput) {
+            e.preventDefault();
+          }
+          return;
+        case 219: // [ - Go frame by frame back
+          if (!isInInput) {
+            e.preventDefault();
+          }
+          return;
+        case 221: // ] - Go frame by frame forward
+          if (!isInInput) {
+            e.preventDefault();
+            console.log("Go frame forward");
+          }
+          return;
+        case 187: // + - Increase speed
+          if (!isInInput) {
+            e.preventDefault();
+            console.log("Increase speed");
+          }
+          return;
+        case 189: // - - Decrease speed
+          if (!isInInput) {
+            e.preventDefault();
+            console.log("Decrease speed");
+          }
+          return;
+        case 13: // Enter with Shift - Submit when viewing video
+          if (e.shiftKey && !isInInput) {
+            e.preventDefault();
+            handleSubmitSelected();
+          }
+          return;
+        case 191: // Shift + / - Jump to answer when viewing video
+          if (e.shiftKey && !isInInput) {
+            e.preventDefault();
+            const answerSection = document.querySelector(".relative.p-2");
+            if (answerSection) {
+              answerSection.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
           return;
       }
     };
@@ -172,8 +223,7 @@ export default function Search() {
     submit({ id: frame.id, ...params }, { action: "/similar" });
   };
 
-  const handleOnSelect = (frame) => {
-    setSelectedFrame(frame.id);
+  const handleOnSearchNearby = (frame) => {
     submit(
       {
         q: "video:" + frame.video_id,
@@ -182,6 +232,17 @@ export default function Search() {
       },
       { action: "/search" },
     );
+  };
+
+  const handleSubmitSelected = () => {
+    const selectedFrameId = getSelectedForSubmit();
+    if (selectedFrameId) {
+      console.log("Submitting selected frame:", selectedFrameId);
+    }
+  };
+
+  const handleClearSelected = () => {
+    clearSelected();
   };
   const handleOnSearch = (e) => {
     e.preventDefault();
@@ -255,37 +316,54 @@ export default function Search() {
 
       <div
         id="nav-bar"
-        className="p-1 flex flex-row justify-center items-center text-xl font-bold"
+        className="p-1 flex flex-row justify-between items-center text-xl font-bold"
       >
-        <img
-          onClick={() => {
-            goToFirstPage();
-          }}
-          className="hover:bg-gray-200 active:bg-gray-300"
-          width="50em"
-          src={HomeButton}
-          draggable="false"
-        />
+        <div className="flex flex-row items-center">
+          <button
+            onClick={handleSubmitSelected}
+            className="mr-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 active:bg-blue-800"
+          >
+            Submit Selected
+          </button>
+          <button
+            onClick={handleClearSelected}
+            className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 active:bg-red-800"
+          >
+            Clear All
+          </button>
+        </div>
+        
+        <div className="flex flex-row items-center">
+          <img
+            onClick={() => {
+              goToFirstPage();
+            }}
+            className="hover:bg-gray-200 active:bg-gray-300"
+            width="50em"
+            src={HomeButton}
+            draggable="false"
+          />
 
-        <img
-          onClick={() => {
-            goToPreviousPage();
-          }}
-          className="hover:bg-gray-200 active:bg-gray-300"
-          width="50em"
-          src={PreviousButton}
-          draggable="false"
-        />
-        <div className="w-10 text-center">{Math.floor(offset / limit) + 1}</div>
-        <img
-          onClick={() => {
-            goToNextPage();
-          }}
-          className="hover:bg-gray-200 active:bg-gray-300"
-          width="50em"
-          src={NextButton}
-          draggable="false"
-        />
+          <img
+            onClick={() => {
+              goToPreviousPage();
+            }}
+            className="hover:bg-gray-200 active:bg-gray-300"
+            width="50em"
+            src={PreviousButton}
+            draggable="false"
+          />
+          <div className="w-10 text-center">{Math.floor(offset / limit) + 1}</div>
+          <img
+            onClick={() => {
+              goToNextPage();
+            }}
+            className="hover:bg-gray-200 active:bg-gray-300"
+            width="50em"
+            src={NextButton}
+            draggable="false"
+          />
+        </div>
       </div>
       {empty ? (
         <div className="w-full text-center p-2 bg-red-500 text-white text-xl text-bold">
@@ -301,6 +379,7 @@ export default function Search() {
             {frames.map((frame) => (
               <FrameItem
                 key={frame.id}
+                id={frame.id}
                 video_id={frame.video_id}
                 frame_id={frame.frame_id}
                 thumbnail={frame.frame_uri}
@@ -310,10 +389,9 @@ export default function Search() {
                 onSearchSimilar={() => {
                   handleOnSearchSimilar(frame);
                 }}
-                onSelect={() => {
-                  handleOnSelect(frame);
+                onSearchNearby={() => {
+                  handleOnSearchNearby(frame);
                 }}
-                selected={selectedFrame === frame.id}
               />
             ))}
           </FrameContainer>

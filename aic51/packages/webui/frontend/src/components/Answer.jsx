@@ -441,6 +441,7 @@ import EditButton from "../assets/edit-btn.svg";
 import DownloadButton from "../assets/download-btn.svg";
 
 import { usePlayVideo } from "./VideoPlayer.jsx";
+import { useSelected } from "./SelectedProvider.jsx";
 import { getCSV, getAnswersByIds } from "../services/answer.js";
 import { getBlob, downloadFile } from "../utils/files.js";
 import { getFrameInfo } from "../services/search.js";
@@ -674,6 +675,10 @@ function AnswerDetail({ answer }) {
 
 function AnswerHeader({}) {
     const fetcher = useFetcher({ key: "answers" });
+    const { selected } = useSelected();
+    
+    const selectedFramesText = selected.length > 0 ? selected.join(", ") : "";
+    
     return (
         <fetcher.Form action="/answers" method="POST">
             <div className="p-1 w-full flex flex-row flex-wrap justify-center items-center bg-lime-100">
@@ -697,9 +702,11 @@ function AnswerHeader({}) {
                     required
                     type="text"
                     name="frame_counter"
-                    placeholder="Frame Counter"
+                    placeholder="Frame Counter(s) - comma separated"
                     autoComplete="off"
+                    value={selectedFramesText}
                     className="basis-1/3 py-1 px-2 min-w-0 focus:outline-none"
+                    onChange={(e) => {}} // Controlled by selected frames
                 />
                 <input
                     type="text"
@@ -715,6 +722,25 @@ function AnswerHeader({}) {
                 />
             </div>
         </fetcher.Form>
+    );
+}
+
+function SelectedFramesPreview() {
+    const { selected } = useSelected();
+    
+    if (selected.length === 0) {
+        return null;
+    }
+    
+    return (
+        <div className="p-2 bg-green-100 border border-green-300 rounded">
+            <div className="text-sm font-bold text-green-800 mb-1">
+                Selected Frames ({selected.length}):
+            </div>
+            <div className="text-xs text-green-700 break-words">
+                {selected.join(", ")}
+            </div>
+        </div>
     );
 }
 
@@ -764,6 +790,7 @@ export default function AnswerSidebar({}) {
         <div className="relative p-2">
             <div className="flex flex-col">
                 <AnswerHeader />
+                <SelectedFramesPreview />
                 <Form onSubmit={handleOnBulkDownload}>
                     <div className="flex flex-col items-center p-1 w-full bg-red-100">
                         <div className="flex flex-row justify-center items-center">
