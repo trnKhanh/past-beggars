@@ -1,16 +1,12 @@
 import hashlib
-import re
 import time
-from copy import deepcopy
 from typing import Optional
 
 import torch
 from pymilvus import AnnSearchRequest, RRFRanker, WeightedRanker
-from thefuzz import fuzz
 
 import aic51.packages.constant as constant
 from aic51.packages.analyse import FeatureExtractorFactory
-from aic51.packages.analyse.objects import Yolo
 from aic51.packages.config import GlobalConfig
 from aic51.packages.index import MilvusDatabase
 from aic51.packages.logger import logger
