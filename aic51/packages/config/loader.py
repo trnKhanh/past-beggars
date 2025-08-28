@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 from yaml import safe_load
 
@@ -27,7 +28,7 @@ class GlobalConfig:
         return GlobalConfig.__config
 
     @staticmethod
-    def get(*args):
+    def get(*args) -> Any:
         try:
             res = GlobalConfig.__load_config()
             for arg in args:

@@ -2,6 +2,7 @@
 max_workers_ratio: 0.5
 
 add:
+  default_size: [1280, 720]
   # Maximum length between two consecutive keyframes (in seconds)
   max_scene_length: 2
   # Keyframe size ratio to the original frame. This also affects resolution of videos
