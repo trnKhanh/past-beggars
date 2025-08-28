@@ -32,7 +32,7 @@ features: &analyse_features
   image_clipb16:
     model: "image_clip"
     source: "open_clip"
-    arch_name: "PE-Core-B-16"
+    arch_name: "PE-Core-L-14-336"
     pretrained_model: "meta" 
     analyse:
       batch_size: 32
@@ -47,7 +47,7 @@ features: &analyse_features
   video_clipb16:
     model: "video_clip"
     source: "open_clip"
-    arch_name: "PE-Core-B-16"
+    arch_name: "PE-Core-L-14-336"
     pretrained_model: "meta" 
     analyse:
       batch_size: 4
@@ -80,7 +80,7 @@ searcher:
     language_clipb16:
       model: "image_clip"
       source: "open_clip"
-      arch_name: "PE-Core-B-16"
+      arch_name: "PE-Core-L-14-336"
       pretrained_model: "meta" 
       target:
         - image_clipb16 
