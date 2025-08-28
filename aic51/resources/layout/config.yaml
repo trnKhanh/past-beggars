@@ -29,13 +29,13 @@ milvus:
 
 # List of features
 features: &analyse_features
-  image_clipb16:
+  image_clip_pe-l-14-336:
     model: "image_clip"
     source: "open_clip"
     arch_name: "PE-Core-L-14-336"
     pretrained_model: "meta" 
     analyse:
-      batch_size: 32
+      batch_size: 64
     index:
       datatype: "FLOAT_VECTOR"
       dim: 1024 
@@ -44,13 +44,13 @@ features: &analyse_features
       params:
         nlist: 512
 
-  video_clipb16:
+  video_clip_pe-l-14-336:
     model: "video_clip"
     source: "open_clip"
     arch_name: "PE-Core-L-14-336"
     pretrained_model: "meta" 
     analyse:
-      batch_size: 4
+      batch_size: 8
     index:
       datatype: "FLOAT_VECTOR"
       dim: 1024 
@@ -77,14 +77,14 @@ features: &analyse_features
 
 searcher:
   language_models:
-    language_clipb16:
+    language_clip_pe-l-14-336:
       model: "image_clip"
       source: "open_clip"
       arch_name: "PE-Core-L-14-336"
       pretrained_model: "meta" 
       target:
-        - image_clipb16 
-        - video_clipb16 
+        - image_clip_pe-l-14-336 
+        - video_clip_pe-l-14-336 
 
   ocr:
     ocr_field: "ocr_sparse"
