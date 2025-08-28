@@ -1,3 +1,4 @@
+import re
 from concurrent.futures import ThreadPoolExecutor
 from math import ceil
 from pathlib import Path
@@ -53,8 +54,9 @@ class Tesseract(OCR):
                     image = image.crop((0, 0, width, round(height * 8 / 9)))
 
                 data = pytesseract.image_to_string(image, output_type=pytesseract.Output.DICT, lang="vie")
+                res = self._normalize_text(data["text"])
 
-                return data["text"].lower()
+                return res
 
             for b in range(num_batches):
                 futures = []
@@ -69,6 +71,11 @@ class Tesseract(OCR):
                     callback(self, b + 1, num_batches, image_features)
 
         return np.array(image_features)
+
+    def _normalize_text(self, text: str):
+        res = text.strip().lower()
+        res = re.sub(r"\s+", " ", res)
+        return res
 
     def get_text_features(self, texts: list[str] | str | np.ndarray, callback: Optional[Callable] = None) -> Any:
         return texts
