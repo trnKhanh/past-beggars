@@ -227,8 +227,8 @@ class MilvusDatabase(object):
         return res
 
     def get_size(self):
-        stats = self._client.get_collection_stats(self._collection_name)
-        return stats["row_count"]
+        res = self._client.query(self._collection_name, output_fields=["count(*)"])
+        return res[0]["count(*)"]
 
     @classmethod
     def start_server(cls):

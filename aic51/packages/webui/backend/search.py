@@ -49,10 +49,10 @@ async def search_multimodal(
     offset: int = 0,
     limit: int = 50,
     target_features: Annotated[list[str], Query()] = [],
-    nprobe: int = 8,
+    nprobe: int = 32,
     temporal_k: int = 10000,
-    ocr_weight: float = 1.0,
-    max_interval: int = 250,
+    ocr_weight: float = 0.5,
+    max_interval: int = 1000,
     selected: str | None = None,
 ):
     if "searcher" not in internal:
@@ -102,14 +102,14 @@ async def search_multimodal(
 @app.get(constant.SEARCH_IMAGE_ENDPOINT)
 async def search_image(
     request: Request,
-    q: str,
+    id: str,
     offset: int = 0,
     limit: int = 50,
     target_features: Annotated[list[str], Query()] = [],
-    nprobe: int = 8,
+    nprobe: int = 32,
     temporal_k: int = 10000,
-    ocr_weight: float = 1.0,
-    max_interval: int = 250,
+    ocr_weight: float = 0.5,
+    max_interval: int = 1000,
 ):
     if "searcher" not in internal:
         return JSONResponse(
@@ -121,7 +121,7 @@ async def search_image(
 
     try:
         searcher_res = searcher.search_image(
-            q,
+            id,
             offset,
             limit,
             target_features,

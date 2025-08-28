@@ -14,11 +14,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 import aic51.packages
 import aic51.packages.constant as constant
+import aic51.packages.webui
 from aic51.packages.config import GlobalConfig
 from aic51.packages.index import MilvusDatabase
+from aic51.packages.logger import logger
 from aic51.packages.search import Searcher
 from aic51.packages.webui.backend import CORE_APP, FILE_APP, SEARCH_APP
-from aic51.packages.logger import logger
 
 from .command import BaseCommand
 
@@ -59,11 +60,12 @@ class ServeCommand(BaseCommand):
     ):
         MilvusDatabase.start_server()
 
+        if do_frontend:
+            self._frontend_dir = Path(inspect.getfile(aic51.packages.webui)).parent / "frontend"
+            self._frontend_process = self._start_frontend(dev_mode)
+
         if do_backend:
             self._backend_processes = self._start_backend(dev_mode)
-
-        if do_frontend:
-            self._frontend_process = self._start_frontend(dev_mode)
 
         try:
             while True:
@@ -88,11 +90,7 @@ class ServeCommand(BaseCommand):
             dev_env["VITE_PORT"] = str(dev_port)
 
             logger.info(f"Starting frontend server at port {dev_port}")
-            frontend_process = subprocess.Popen(
-                dev_cmd,
-                env=dev_env,
-                cwd=str(Path(__file__).parent / "../../packages/webui/frontend"),
-            )
+            frontend_process = subprocess.Popen(dev_cmd, env=dev_env, cwd=str(self._frontend_dir))
         else:
             self._build_frontend()
             frontend_process = None
@@ -110,8 +108,9 @@ class ServeCommand(BaseCommand):
         logger.info("Starting backend servers")
         params = {}
 
-        if dev_mode:
-            params = {**params, "reload": True, "reload_dirs": [inspect.getfile(aic51.packages)]}
+        # uvicorn reload is not working because it spawns a new process to monitor and cause a mess with multiprocessing
+        # if dev_mode:
+        #     params = {**params, "reload": True, "reload_dirs": [Path(inspect.getfile(aic51.packages)).parent]}
 
         backend_processes = []
 
@@ -186,7 +185,7 @@ class ServeCommand(BaseCommand):
         install_cmd = ["npm", "install"]
         subprocess.run(
             install_cmd,
-            cwd=str(Path(__file__).parent / "../../packages/webui/frontend"),
+            cwd=str(self._frontend_dir),
         )
 
     def _build_frontend(self):
@@ -195,15 +194,15 @@ class ServeCommand(BaseCommand):
 
         subprocess.run(
             build_cmd,
-            cwd=str(Path(__file__).parent / "../../packages/webui/frontend"),
+            cwd=str(self._frontend_dir),
         )
-        built_dir = Path(__file__).parent / "../../packages/webui/frontend/dist"
-        public_dir = Path(__file__).parent / "../../packages/webui/frontend/public"
+        built_dir = self._frontend_dir / "dist"
 
-        web_dir = self._work_dir / ".web"
+        web_dir = self._work_dir / constant.FRONTEND_DIST_DIR
 
         if web_dir.exists():
             shutil.rmtree(web_dir)
+
         web_dir.mkdir(parents=True, exist_ok=True)
 
         built_dir.rename(web_dir / "dist")

@@ -2,17 +2,16 @@ import logging
 import os
 from argparse import ArgumentParser
 from pathlib import Path
-from aic51.packages.logger import logger
 
 from dotenv import load_dotenv
+
+from aic51.packages.logger import logger
 
 os.environ["YOLO_VERBOSE"] = "False"
 load_dotenv()
 
-
-dev_mode = os.getenv("AIC51_DEV", "false").lower() == "true"
-
 from . import commands
+
 
 def main():
 
@@ -43,6 +42,8 @@ def main():
     command = args.pop("command")
     dev_mode = args.get("dev_mode")
     if dev_mode:
+        logger.setLevel(logging.DEBUG)
+    else:
         logger.setLevel(logging.INFO)
 
     func = args.pop("func")

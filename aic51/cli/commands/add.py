@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -10,10 +11,10 @@ from typing import Callable
 import cv2
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
+import aic51.packages.constant as constant
 from aic51.packages.config import GlobalConfig
 from aic51.packages.logger import logger
 from aic51.packages.utils.files import get_path
-import aic51.packages.constant as constant
 
 from .command import BaseCommand
 
@@ -157,8 +158,9 @@ class AddCommand(BaseCommand):
                         do_overwrite,
                         show_progress(task_id),
                     )
+
                     if do_audio:
-                        self._extract_audio(video_path, do_overwrite, show_progress(task_id))
+                        self._extract_audio(output_path, do_overwrite, show_progress(task_id))
 
                     if do_keyframe:
                         self._extract_keyframes(
@@ -173,6 +175,7 @@ class AddCommand(BaseCommand):
 
                     progress.remove_task(task_id)
                 except Exception as e:
+                    logger.exception(e)
                     progress.update(
                         task_id,
                         description=f"Error: {str(e)}",
@@ -196,6 +199,8 @@ class AddCommand(BaseCommand):
         else:
             shutil.copy(video_path, output_path)
 
+        self._extract_video_info(output_path)
+
         update_progress(advance=1)
 
         return 1, output_path, video_id
@@ -212,8 +217,10 @@ class AddCommand(BaseCommand):
         if keyframe_dir.exists():
             if do_overwrite:
                 shutil.rmtree(keyframe_dir)
-                shutil.rmtree(thumbnail_dir)
-                shutil.rmtree(video_clips_dir)
+                if thumbnail_dir.exists():
+                    shutil.rmtree(thumbnail_dir)
+                if video_clips_dir.exists():
+                    shutil.rmtree(video_clips_dir)
             else:
                 return
 
@@ -350,6 +357,14 @@ class AddCommand(BaseCommand):
         keyframes_list = [i for i, x in enumerate(keyframes_list) if x.startswith("frame,I")]
         return keyframes_list
 
+    def _extract_video_info(self, video_path: Path):
+        info_file = self._work_dir / constant.VIDEO_INFO_DIR / f"{video_path.stem}.json"
+        info_file.parent.mkdir(parents=True, exist_ok=True)
+
+        data = {constant.FPS_KEY: self._get_fps(video_path)}
+        with open(info_file, "w") as f:
+            json.dump(data, f)
+
     def _get_fps(self, video_path: Path):
         ffprobe_cmd = ["ffprobe", "-v", "quiet", "-of", "compact=p=0"] + [
             "-select_streams",
@@ -396,7 +411,7 @@ class AddCommand(BaseCommand):
         ffmpeg_cmd = (
             ["ffmpeg", "-v", "quiet", "-y"]
             + ["-i", str(video_path)]
-            + ["-vf", f'scale=iw*{compress_size_rate}:ih*{compress_size_rate}']
+            + ["-vf", f"scale=iw*{compress_size_rate}:ih*{compress_size_rate}"]
             + [
                 "-c:v",
                 "libx264",

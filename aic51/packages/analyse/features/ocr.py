@@ -53,8 +53,9 @@ class Tesseract(OCR):
                     width, height = image.size
                     image = image.crop((0, 0, width, round(height * 8 / 9)))
 
-                data = pytesseract.image_to_string(image, output_type=pytesseract.Output.DICT, lang="vie")
-                res = self._normalize_text(data["text"])
+                eng_data = pytesseract.image_to_string(image, output_type=pytesseract.Output.DICT, lang="eng")
+                vie_data = pytesseract.image_to_string(image, output_type=pytesseract.Output.DICT, lang="vie")
+                res = self._normalize_text(eng_data["text"] + " " + vie_data["text"])
 
                 return res
 

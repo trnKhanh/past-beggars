@@ -8,6 +8,7 @@ import torch
 from pymilvus import AnnSearchRequest, RRFRanker, WeightedRanker
 from thefuzz import fuzz
 
+import aic51.packages.constant as constant
 from aic51.packages.analyse import FeatureExtractorFactory
 from aic51.packages.analyse.objects import Yolo
 from aic51.packages.config import GlobalConfig
@@ -59,19 +60,16 @@ class Searcher(object):
         selected: str | None = None,
     ):
         start_time = time.time()
-        logger.info(q)
         query = Query(q)
-        logger.info(query.video_ids)
-        logger.info(query.data)
 
         if query.simple:
-            logger.debug(f"searcher: get video_ids={query.video_ids}")
+            logger.info(f"searcher: get video_ids={query.video_ids}")
             res = self._get_videos(query.video_ids, offset, limit, selected)
         elif query.advance and not query.temporal:
-            logger.debug(f"searcher: advance_search query={query.data}")
+            logger.info(f"searcher: advance_search query={query.data}")
             res = self._advance_search(query, offset, limit, target_features, ocr_weight=ocr_weight, nprobe=nprobe)
         else:
-            logger.debug(f"searcher: temporal_search query={query.data}")
+            logger.info(f"searcher: temporal_search query={query.data}")
             res = self._temporal_search(
                 query,
                 offset,
@@ -84,7 +82,7 @@ class Searcher(object):
             )
 
         end_time = time.time()
-        logger.debug(f"searcher: Take {end_time - start_time:.4f} to extract and search")
+        logger.info(f"searcher: Take {end_time - start_time:.4f} to extract and search")
         return res
 
     def search_image(
@@ -126,12 +124,15 @@ class Searcher(object):
 
         ranker = RRFRanker()
 
-        results = self._database.hybrid_search(
-            reqs,
-            ranker,
-            offset,
-            limit,
-        )[0]
+        if len(reqs) > 0:
+            results = self._database.hybrid_search(
+                reqs,
+                ranker,
+                offset,
+                limit,
+            )[0]
+        else:
+            results = []
 
         res = {
             "results": results,
@@ -282,12 +283,12 @@ class Searcher(object):
                 results_list.append(results)
 
             en = time.time()
-            logger.debug(f"{en-st:.4f} seconds to search results")
+            logger.info(f"searcher: Take {en-st:.4f} seconds to search results")
 
             st = time.time()
             temporal_results = self._combine_temporal_results(results_list, max_interval)
             en = time.time()
-            logger.debug(f"{en-st:.4f} seconds to combine results")
+            logger.info(f"searcher: Take {en-st:.4f} seconds to combine results")
 
             self.cache[query_hash] = temporal_results
 
@@ -313,9 +314,9 @@ class Searcher(object):
                 results_list[i][j]["_id"] = (video_id, int(frame_id))
                 results_list[i][j]["time_line"] = [frame_id]
 
-        for res in results_list[::-1]:
+        for i, res in enumerate(results_list[::-1]):
             if best is None:
-                best = res
+                best = res[: constant.TEMPORAL_QUEUE_SIZE]
                 continue
 
             tmp = []
@@ -359,8 +360,7 @@ class Searcher(object):
                         )
 
             tmp = sorted(tmp, key=lambda x: x["distance"], reverse=True)
-            best = tmp
-            logger.info(best)
+            best = tmp[: constant.TEMPORAL_QUEUE_SIZE]
 
         return best
 
@@ -426,13 +426,13 @@ class Searcher(object):
 
             polite_name = f"{model_name}" + (f' from "{pretrained_model}"' if pretrained_model else "")
             if feature_extractor:
-                logger.info(f"Loaded {polite_name} for searching")
+                logger.info(f"searcher: Loaded {polite_name} for searching")
             else:
-                logger.error(f"{polite_name}: invalid feature extractor")
+                logger.error(f"searcher: {polite_name}: invalid feature extractor")
                 continue
 
             if target_features is None or len(target_features) == 0:
-                logger.error(f"{polite_name} does not have target features")
+                logger.error(f"searcher: {polite_name} does not have target features")
                 continue
 
             for t in target_features:

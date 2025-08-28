@@ -28,7 +28,7 @@ def create_app(*args, **kwargs):
 
 def get_fps(video_id: str):
     try:
-        with open(f"{constant.VIDEO_INFO_DIR}{video_id}.json", "r") as f:
+        with open(f"{constant.VIDEO_INFO_DIR}/{video_id}.json", "r") as f:
             fps = json.load(f)[constant.FPS_KEY]
     except:
         fps = constant.DEFAULT_FPS

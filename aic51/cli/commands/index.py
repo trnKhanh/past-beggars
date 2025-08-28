@@ -39,11 +39,10 @@ class IndexCommand(BaseCommand):
             help="Overwrite existing collection",
         )
         parser.add_argument(
-            "-u",
-            "--update",
+            "--no-update",
             dest="do_update",
-            action="store_true",
-            help="Update existing records",
+            action="store_false",
+            help="Do not update existing records",
         )
 
         parser.set_defaults(func=self)
@@ -52,6 +51,8 @@ class IndexCommand(BaseCommand):
         MilvusDatabase.start_server()
 
         database = MilvusDatabase(collection_name, do_overwrite)
+
+        total_inserted = 0
 
         max_workers_ratio = GlobalConfig.get("max_workers_ratio") or 0
         max_workers = max(1, round(os.cpu_count() or 0) * max_workers_ratio)
@@ -72,7 +73,7 @@ class IndexCommand(BaseCommand):
             def index_one_video(video_id):
                 task_id = progress.add_task(description="Processing", name=video_id)
                 try:
-                    self._index_one_video(
+                    res = self._index_one_video(
                         database,
                         video_id,
                         do_update,
@@ -80,8 +81,11 @@ class IndexCommand(BaseCommand):
                     )
                     progress.remove_task(task_id)
                 except Exception as e:
+                    res = 0
                     logger.exception(e)
                     progress.update(task_id, description=f"Error: {str(e)}")
+
+                return res
 
             futures = []
             video_paths = self._get_videos()
@@ -91,10 +95,9 @@ class IndexCommand(BaseCommand):
                 futures.append(executor.submit(index_one_video, video_id))
 
             for future in futures:
-                future.result()
+                total_inserted += future.result()
 
-        database_size = database.get_size()
-        logger.info(f"Inserted {database_size} entities")
+        logger.info(f"Inserted {total_inserted} entities")
 
     def _get_videos(self):
         features_dir = self._work_dir / constant.FEATURE_DIR
@@ -148,3 +151,4 @@ class IndexCommand(BaseCommand):
             update_progress(advance=1)
 
         database.insert(data_list, do_update)
+        return len(data_list)
