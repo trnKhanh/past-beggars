@@ -40,7 +40,7 @@ export function MultiSelect({ name, options = [], selectedValues = [] }) {
       <label className="font-bold text-xs whitespace-nowrap">
         {name}
       </label>
-      <div className="max-h-32 overflow-y-auto">
+      <div className="max-h-32 overflow-y-auto grid grid-cols-2 gap-1">
         {safeOptions.map((item) => (
           <label key={item} className="flex items-center gap-1 text-xs">
             <input

@@ -1,16 +1,14 @@
 import axios from "axios";
 
-const PORT = import.meta.env.VITE_PORT || 5100;
+const PORT = import.meta.env.VITE_PORT || 6900;
 
 export async function search(
   q,
   offset,
   limit,
   nprobe,
-  model,
   temporal_k,
   ocr_weight,
-  ocr_threshold,
   max_interval,
   selected,
   target_features,
@@ -20,10 +18,8 @@ export async function search(
     offset: offset,
     limit: limit,
     nprobe: nprobe,
-    model: model,
     temporal_k: temporal_k,
     ocr_weight: ocr_weight,
-    ocr_threshold: ocr_threshold,
     max_interval: max_interval,
     selected: selected,
   };
@@ -32,7 +28,7 @@ export async function search(
     params.target_features = target_features;
   }
 
-  const res = await axios.get(`http://127.0.0.1:${PORT}/api/search`, {
+  const res = await axios.get(`http://127.0.0.1:${PORT}/api/search_multimodal`, {
     params: params,
   });
   const data = res.data;
@@ -43,41 +39,34 @@ export async function searchSimilar(
   offset,
   limit,
   nprobe,
-  model,
   temporal_k,
   ocr_weight,
-  ocr_threshold,
   max_interval,
+  target_features,
 ) {
-  const res = await axios.get(`http://127.0.0.1:${PORT}/api/similar`, {
-    params: {
-      id: id,
-      offset: offset,
-      limit: limit,
-      nprobe: nprobe,
-      model: model,
-      temporal_k: temporal_k,
-      ocr_weight: ocr_weight,
-      ocr_threshold: ocr_threshold,
-      max_interval: max_interval,
-    },
+  const params = {
+    id: id,
+    offset: offset,
+    limit: limit,
+    nprobe: nprobe,
+    temporal_k: temporal_k,
+    ocr_weight: ocr_weight,
+    max_interval: max_interval,
+  };
+
+  if (target_features && Array.isArray(target_features) && target_features.length > 0) {
+    params.target_features = target_features;
+  }
+
+  const res = await axios.get(`http://127.0.0.1:${PORT}/api/search_image`, {
+    params: params,
   });
   const data = res.data;
   return data;
 }
 
 export async function getFrameInfo(videoId, frameId) {
-  const res = await axios.get(`http://127.0.0.1:${PORT}/api/frame_info`, {
-    params: {
-      video_id: videoId,
-      frame_id: frameId,
-    },
-  });
-  const data = res.data;
-  return data;
-}
-export async function getAvailableModels() {
-  const res = await axios.get(`http://127.0.0.1:${PORT}/api/models`);
+  const res = await axios.get(`http://127.0.0.1:${PORT}/api/files/info/${videoId}/${frameId}`);
   const data = res.data;
   return data;
 }

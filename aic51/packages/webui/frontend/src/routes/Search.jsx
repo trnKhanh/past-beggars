@@ -23,7 +23,6 @@ import {
   nprobeOption,
   temporal_k_default,
   ocr_weight_default,
-  ocr_threshold_default,
   max_interval_default,
 } from "../resources/options.js";
 
@@ -32,18 +31,25 @@ export async function loader({ request }) {
   const searchParams = url.searchParams;
 
   const q = searchParams.get("q");
+  
+  if (!q) {
+    return {
+      query: {},
+      params: {},
+      selected: undefined,
+      offset: 0,
+      data: { total: 0, frames: [] },
+    };
+  }
+
   const _offset = searchParams.get("offset") || 0;
   const selected = searchParams.get("selected") || undefined;
   const limit = searchParams.get("limit") || limitOptions[0];
   const nprobe = searchParams.get("nprobe") || nprobeOption[0];
-  const model = searchParams.get("model") || undefined;
   const temporal_k = searchParams.get("temporal_k") || temporal_k_default;
   const ocr_weight = searchParams.get("ocr_weight") || ocr_weight_default;
-  const ocr_threshold =
-    searchParams.get("ocr_threshold") || ocr_threshold_default;
   const max_interval = searchParams.get("max_interval") || max_interval_default;
-  
-  // Handle target_features parameter
+
   let target_features = null;
   const targetFeaturesParam = searchParams.get("target_features");
   if (targetFeaturesParam) {
@@ -59,10 +65,8 @@ export async function loader({ request }) {
     _offset,
     limit,
     nprobe,
-    model,
     temporal_k,
     ocr_weight,
-    ocr_threshold,
     max_interval,
     selected,
     target_features,
@@ -80,7 +84,7 @@ export async function loader({ request }) {
 
 export default function Search() {
   const navigation = useNavigation();
-  const { modelOptions } = useOutletContext();
+  const { targetFeatureOptions } = useOutletContext();
   const submit = useSubmit();
   const { query, params, offset, data, selected } = useLoaderData();
   console.log(params);
@@ -88,16 +92,19 @@ export default function Search() {
   const { getSelectedForSubmit, clearSelected } = useSelected();
 
   const { q = "", id = null } = query;
-  const { limit, nprobe, model } = params;
+  const { limit, nprobe } = params;
+  
+  const [currentQuery, setCurrentQuery] = useState(q);
 
   const { total, frames } = data;
   const empty = frames.length === 0;
 
   useEffect(() => {
-    // Set correct values
-    document.querySelector("#search-bar").value = q || "";
-    document.querySelector("#search-bar").focus();
-
+    setCurrentQuery(q);
+    const searchBar = document.querySelector("#search-bar");
+    if (searchBar) {
+      searchBar.focus();
+    }
     document.title = q;
   }, [q]);
 
@@ -283,6 +290,8 @@ export default function Search() {
               name="q"
               id="search-bar"
               placeholder="Search"
+              value={currentQuery}
+              onChange={(e) => setCurrentQuery(e.target.value)}
               onKeyDown={(e) => {
                 // Bad practice
                 if (e.keyCode === 13 && e.shiftKey === false) {
@@ -301,16 +310,15 @@ export default function Search() {
       </Form>
 
       <AdvanceQueryContainer
-        q={q}
+        q={currentQuery}
         onChange={(newQ) => {
+          setCurrentQuery(newQ);
+        }}
+        onSubmit={() => {
           submit({
-            q: newQ,
+            q: currentQuery,
             ...params,
           }, { action: "/search" });
-        }}
-        objectOptions={[]}
-        onSubmit={() => {
-          // Submit handled by onChange
         }}
       />
 

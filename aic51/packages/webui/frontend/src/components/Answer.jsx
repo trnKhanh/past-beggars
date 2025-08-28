@@ -706,7 +706,7 @@ function AnswerHeader({}) {
                     autoComplete="off"
                     value={selectedFramesText}
                     className="basis-1/3 py-1 px-2 min-w-0 focus:outline-none"
-                    onChange={(e) => {}} // Controlled by selected frames
+                    onChange={(e) => {}}
                 />
                 <input
                     type="text"

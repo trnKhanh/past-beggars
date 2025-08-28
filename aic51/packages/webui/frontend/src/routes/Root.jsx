@@ -5,25 +5,30 @@ import SelectedProvider from "../components/SelectedProvider.jsx";
 
 import AnswerSidebar from "../components/Answer.jsx";
 import SearchParams from "../components/SearchParams.jsx";
-import { getAvailableModels } from "../services/search.js";
+import { getTargetFeatures } from "../services/search.js";
 
 export async function loader() {
-  const data = await getAvailableModels();
-  return { modelOptions: data["models"] };
+  try {
+    const data = await getTargetFeatures();
+    return { targetFeatureOptions: data.target_features || [] };
+  } catch (error) {
+    console.error('Failed to load target features:', error);
+    return { targetFeatureOptions: [] };
+  }
 }
 export default function Root() {
-  const { modelOptions } = useLoaderData();
+  const { targetFeatureOptions } = useLoaderData();
   return (
     <SelectedProvider>
       <VideoProvider>
         <div className="flex flex-row">
           <div className="flex flex-col">
-            <SearchParams modelOptions={modelOptions} />
+            <SearchParams />
             <div className="w-96">
               <AnswerSidebar />
             </div>
           </div>
-          <Outlet context={{ modelOptions }} />
+          <Outlet context={{ targetFeatureOptions }}/>
         </div>
       </VideoProvider>
     </SelectedProvider>

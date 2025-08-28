@@ -6,29 +6,28 @@ import {
   nprobeOption,
   temporal_k_default,
   ocr_weight_default,
-  ocr_threshold_default,
   max_interval_default,
 } from "../resources/options.js";
 import { getTargetFeatures } from "../services/search.js";
 
-export default function SearchParams({ modelOptions }) {
+export default function SearchParams() {
   const submit = useSubmit();
   const location = useLocation();
   const [targetFeatures, setTargetFeatures] = useState([]);
   const [selectedFeatures, setSelectedFeatures] = useState([]);
-
-  // Fetch target features on component mount
+  
   useEffect(() => {
     const fetchTargetFeatures = async () => {
       try {
-        const features = await getTargetFeatures();
+        const response = await getTargetFeatures();
+        const features = response.target_features || [];
         setTargetFeatures(Array.isArray(features) ? features : []);
       } catch (error) {
         console.error('Failed to fetch target features:', error);
         setTargetFeatures([]);
       }
     };
-    fetchTargetFeatures();
+    fetchTargetFeatures().then();
   }, []);
 
   // Update form values based on URL parameters
@@ -37,10 +36,8 @@ export default function SearchParams({ modelOptions }) {
     const params = {
       nprobe: searchParams.get('nprobe') || nprobeOption[0],
       limit: searchParams.get('limit') || limitOptions[0],
-      model: searchParams.get('model') || '',
       temporal_k: searchParams.get('temporal_k') || temporal_k_default,
       ocr_weight: searchParams.get('ocr_weight') || ocr_weight_default,
-      ocr_threshold: searchParams.get('ocr_threshold') || ocr_threshold_default,
       max_interval: searchParams.get('max_interval') || max_interval_default,
     };
 
@@ -101,12 +98,8 @@ export default function SearchParams({ modelOptions }) {
         <div className="grid grid-cols-2 gap-1">
           <Dropdown name="nprobe" options={nprobeOption} />
           <Dropdown name="limit" options={limitOptions} />
-          <div className="col-span-2">
-            <Dropdown name="model" options={modelOptions || []} />
-          </div>
           <Editable name="temporal_k" defaultValue={temporal_k_default} />
           <Editable name="ocr_weight" defaultValue={ocr_weight_default} />
-          <Editable name="ocr_threshold" defaultValue={ocr_threshold_default} />
           <Editable name="max_interval" defaultValue={max_interval_default} />
         </div>
 

@@ -14,14 +14,12 @@ import { useSelected } from "../components/SelectedProvider.jsx";
 import PreviousButton from "../assets/previous-btn.svg";
 import NextButton from "../assets/next-btn.svg";
 import HomeButton from "../assets/home-btn.svg";
-import SpinIcon from "../assets/spin.svg";
 
 import { 
   limitOptions, 
   nprobeOption,
   temporal_k_default,
   ocr_weight_default,
-  ocr_threshold_default,
   max_interval_default,
 } from "../resources/options.js";
 
@@ -34,11 +32,8 @@ export async function loader({ request }) {
   const selected = searchParams.get("selected") || undefined;
   const limit = searchParams.get("limit") || limitOptions[0];
   const nprobe = searchParams.get("nprobe") || nprobeOption[0];
-  const model = searchParams.get("model") || undefined;
   const temporal_k = searchParams.get("temporal_k") || temporal_k_default;
   const ocr_weight = searchParams.get("ocr_weight") || ocr_weight_default;
-  const ocr_threshold =
-    searchParams.get("ocr_threshold") || ocr_threshold_default;
   const max_interval = searchParams.get("max_interval") || max_interval_default;
 
   const { total, frames, params, offset } = await searchSimilar(
@@ -46,10 +41,8 @@ export async function loader({ request }) {
     _offset,
     limit,
     nprobe,
-    model,
     temporal_k,
     ocr_weight,
-    ocr_threshold,
     max_interval,
     selected,
   );
@@ -64,14 +57,14 @@ export async function loader({ request }) {
 
 export default function SearchSimilar() {
   const navigation = useNavigation();
-  const { modelOptions } = useOutletContext();
+  const { targetFeatureOptions } = useOutletContext();
   const submit = useSubmit();
   const { query, params, offset, data } = useLoaderData();
   const playVideo = usePlayVideo();
   const { getSelectedForSubmit, clearSelected } = useSelected();
 
   const { id } = query;
-  const { limit, nprobe, model } = params;
+  const { limit, nprobe } = params;
 
   const { total, frames } = data;
   const empty = frames.length === 0;
