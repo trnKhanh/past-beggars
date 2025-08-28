@@ -4,27 +4,32 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aic51"
-version = "1.0.3"
+version = "2.0.0"
 requires-python = ">= 3.10"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
 dependencies = [
   "rich",
-  "torch==2.4.0", 
-  "torchvision==0.19.0",
+  "torch", 
+  "torchvision",
   "numpy==1.26.4",
-  "transformers==4.44.2",
-  "python-dotenv==1.0.1",
-  "pyyaml==6.0.2",
-  "opencv-python==4.10.0.84",
-  "pillow==10.4.0",
-  "pymilvus==2.4.6",
+  "transformers",
+  "python-dotenv",
+  "pyyaml",
+  "opencv-python",
+  "pillow",
+  "pymilvus>=2.6.0",
   "fastapi",
   "uvicorn",
   "easyocr",
   "thefuzz",
   "ultralytics",
   "sentencepiece",
+  "h5py",
+  "jupyter",
+  "open_clip_torch",
+  "pytesseract",
+  "apscheduler"
 ]
 
 [project.scripts]
@@ -32,10 +37,5 @@ aic51-cli = "aic51.cli:__main__.main"
 
 [tool.setuptools]
 packages = [
-  "aic51.cli", 
-  "aic51.packages", 
-  "aic51.config",
-  "aic51.layout", 
-  "aic51.milvus-standalone", 
+  "aic51",
 ]
-

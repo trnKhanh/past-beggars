@@ -1,50 +1,70 @@
-import logging
-from urllib.parse import urlparse, urljoin
 import concurrent.futures
+import json
+import logging
+from urllib.parse import urljoin, urlparse
 
 import requests
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
-logger = logging.getLogger(__name__)
-
-
-class BaseRequest(object):
-    pass
-
-
-class GetRequest(BaseRequest):
-    def __init__(self, *args, **kwargs):
-        self.func = requests.get
-        self.args = args
-        self.kwargs = kwargs
+import aic51.packages.constant as constant
+from aic51.packages.logger import logger
 
 
-class ConcurrentRequest(object):
-    def __init__(self, gsize):
-        self._executor = concurrent.futures.ThreadPoolExecutor(gsize)
-        self._futures = []
+def create_app(*args, **kwargs):
+    app = FastAPI(*args, **kwargs)
+    origins = [
+        "*",
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    return app
 
-    def __del__(self):
-        self._executor.shutdown(wait=False, cancel_futures=True)
 
-    def _request_wrapper(self, request):
-        try:
-            return request.func(*request.args, **request.kwargs)
-        except Exception as e:
-            return None
+def get_fps(video_id: str):
+    try:
+        with open(f"{constant.VIDEO_INFO_DIR}/{video_id}.json", "r") as f:
+            fps = json.load(f)[constant.FPS_KEY]
+    except:
+        fps = constant.DEFAULT_FPS
 
-    def map(self, reqs):
-        for req in reqs:
-            self._futures.append(
-                self._executor.submit(self._request_wrapper, req)
-            )
+    return fps
 
-    def as_completed(self):
-        return concurrent.futures.as_completed(self._futures)
 
-    def cancel_all(self):
-        for future in self._futures:
-            future.cancel()
-        self._futures = []
+def process_searcher_results(searcher_res: dict):
+    frames = []
+    for record in searcher_res["results"]:
+        data = record["entity"]
+        record_id = data["frame_id"]  # <video_id>#<frame_id>
+        video_id, frame_id = record_id.split("#")
+
+        if "time_line" in record:
+            time_line = record["time_line"]
+        else:
+            time_line = [frame_id]
+
+        fps = get_fps(video_id)
+
+        frames.append(
+            {
+                "id": record_id,
+                "video_id": video_id,
+                "frame_id": frame_id,
+                "time_line": time_line,
+                "fps": fps,
+            }
+        )
+
+    return {
+        constant.RESULT_TOTAL_KEY: searcher_res["total"],
+        constant.RESULT_FRAMES_KEY: frames,
+        constant.RESULT_OFFSET_KEY: searcher_res["offset"],
+    }
 
 
 def process_search_results(request, results):
