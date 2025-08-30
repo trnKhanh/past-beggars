@@ -1,7 +1,6 @@
-import { deleteAnswer } from "../services/answer.js";
+import {deleteAnswer} from "../services/answer.js";
 
-export async function action({ params, request }) {
+export async function action({ params }) {
   const id = params.answerId;
-  const res = await deleteAnswer(id);
-  return res;
+  return await deleteAnswer(id);
 }

@@ -56,7 +56,7 @@ def process_searcher_results(searcher_res: dict):
                 "video_id": video_id,
                 "frame_id": frame_id,
                 "time_line": time_line,
-                "fps": fps,
+                "fps": fps
             }
         )
 
@@ -75,10 +75,10 @@ def process_search_results(request, results):
 
 def process_frame_info(request, frame):
     domain = str(request.base_url)
-    if frame["frame_uri"]:
+    if frame.get("frame_uri"):
         frame_uri = urlparse(frame["frame_uri"])
         frame["frame_uri"] = urljoin(domain, frame_uri.path)
-    if frame["video_uri"]:
+    if frame.get("video_uri"):
         video_uri = urlparse(frame["video_uri"])
         frame["video_uri"] = urljoin(domain, video_uri.path)
     return frame

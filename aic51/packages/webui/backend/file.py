@@ -39,12 +39,17 @@ async def health(request: Request):
 async def frame_info(request: Request, video_id: str, frame_id: str):
     id = f"{video_id}#{frame_id}"
     fps = get_fps(video_id)
+    
+    # Construct video URI based on request base URL
+    domain = str(request.base_url).rstrip('/')
+    video_uri = f"{domain}{constant.FILE_ENDPOINT}/{video_id}"
 
     return dict(
         id=id,
         video_id=video_id,
         frame_id=frame_id,
         fps=fps,
+        video_uri=video_uri,
     )
 
 

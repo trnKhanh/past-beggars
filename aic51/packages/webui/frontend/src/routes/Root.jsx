@@ -1,35 +1,36 @@
-import { useLoaderData, useNavigation } from "react-router-dom";
-import { useState, useContext } from "react";
-import { Outlet } from "react-router-dom";
+import { useLoaderData, Outlet } from "react-router-dom";
 
-import VideoProvider, { usePlayVideo } from "../components/VideoPlayer.jsx";
-import AuthProvider from "../components/AuthProvider.jsx";
+import VideoProvider from "../components/VideoPlayer.jsx";
+import SelectedProvider from "../components/SelectedProvider.jsx";
+
 import AnswerSidebar from "../components/Answer.jsx";
-import { getAvailableModels, getObjectClasses } from "../services/search.js";
+import SearchParams from "../components/SearchParams.jsx";
+import { getTargetFeatures } from "../services/search.js";
 
 export async function loader() {
-  const models_data = await getAvailableModels();
-  const objects_data = await getObjectClasses();
-  return {
-    modelOptions: models_data["models"],
-    objectOptions: objects_data["objects"],
-  };
+  try {
+    const data = await getTargetFeatures();
+    return { targetFeatureOptions: data.target_features || [] };
+  } catch (error) {
+    console.error('Failed to load target features:', error);
+    return { targetFeatureOptions: [] };
+  }
 }
 export default function Root() {
-  const navigation = useNavigation();
-  const { modelOptions, objectOptions } = useLoaderData();
+  const { targetFeatureOptions } = useLoaderData();
   return (
-    <AuthProvider>
+    <SelectedProvider>
       <VideoProvider>
         <div className="flex flex-row">
-          <div>
-            <div className="w-96">
+          <div className="flex flex-col">
+            <SearchParams />
+            <div className="w-96 z-10">
               <AnswerSidebar />
             </div>
           </div>
-          <Outlet context={{ modelOptions, objectOptions }} />
+          <Outlet context={{ targetFeatureOptions }}/>
         </div>
       </VideoProvider>
-    </AuthProvider>
+    </SelectedProvider>
   );
 }

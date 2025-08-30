@@ -51,7 +51,7 @@ class Searcher(object):
         /,
         nprobe: int = 8,
         temporal_k: int = 10000,
-        ocr_weight: float = 1.0,
+        ocr_weight: float = 0.5,
         max_interval: int = 250,
         selected: str | None = None,
     ):

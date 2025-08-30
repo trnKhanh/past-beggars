@@ -92,7 +92,7 @@ searcher:
     enable: true
 
 frontend:
-  dev_port: 12345
+  dev_port: 5173
 
 backends:
   core:
