@@ -264,12 +264,15 @@ class AddCommand(BaseCommand):
         cap = cv2.VideoCapture(str(video_path))
         _frame_counter = 0
         scene_length = 0
+        default_size = GlobalConfig.get("add", "default_size") or [1280, 720]
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
 
-            resized_frame = cv2.resize(frame, None, fx=keyframe_ratio, fy=keyframe_ratio)
+            default_size_frame = cv2.resize(frame, default_size)
+
+            resized_frame = cv2.resize(default_size_frame, None, fx=keyframe_ratio, fy=keyframe_ratio)
             video_frames.append(resized_frame)
 
             if len(video_frames) >= 2 * video_length:
@@ -323,7 +326,6 @@ class AddCommand(BaseCommand):
                         audio_start_frame = max(0, audio_frame_counter - audio_clip_interval * 3)
                         audio_end_frame = min(len(audio_frames) - 1, audio_start_frame + audio_clip_interval * 7)
 
-                        # logger.info(f"{audio_fps}, {audio_start_frame}, {audio_end_frame - audio_start_frame}, {audio_clip_interval}")
                         with wave.open(str(audio_clips_dir / f"{video_frame_counter:06d}.wav"), "wb") as f:
                             f.setparams(wave_params)
                             f.writeframes(
@@ -408,10 +410,11 @@ class AddCommand(BaseCommand):
 
         update_progress(description="Compress video", completed=0, total=1)
         # ffmpeg -i input.mp4 -vf scale="iw:ih" -c:v libx264 -tune zerolatency -preset ultrafast -crf 40 -c:a aac -b:a 32k  output.mp4 -y
+        default_size = GlobalConfig.get("add", "default_size") or [1280, 720]
         ffmpeg_cmd = (
             ["ffmpeg", "-v", "quiet", "-y"]
             + ["-i", str(video_path)]
-            + ["-vf", f"scale=iw*{compress_size_rate}:ih*{compress_size_rate}"]
+            + ["-vf", f"scale={default_size[0]}*{compress_size_rate}:{default_size[1]}*{compress_size_rate}"]
             + [
                 "-c:v",
                 "libx264",

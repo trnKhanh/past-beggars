@@ -1,6 +1,9 @@
 from pathlib import Path
+from typing import Any
 
 from yaml import safe_load
+
+from aic51.packages.logger import logger
 
 
 class GlobalConfig:
@@ -16,16 +19,16 @@ class GlobalConfig:
         config_path = work_dir / GlobalConfig.CONFIG_FILE
 
         if not config_path.exists():
-            raise RuntimeError(f'"{GlobalConfig.CONFIG_FILE}" not found. Workspace need to be initialized first.')
+            logger.warning(f'"{GlobalConfig.CONFIG_FILE}" not found. Workspace need to be initialized first.')
+            return {}
 
         with open(work_dir / GlobalConfig.CONFIG_FILE, "r") as f:
             GlobalConfig.__config = safe_load(f)
 
         return GlobalConfig.__config
 
-
     @staticmethod
-    def get(*args):
+    def get(*args) -> Any:
         try:
             res = GlobalConfig.__load_config()
             for arg in args:
