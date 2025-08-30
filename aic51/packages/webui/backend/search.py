@@ -11,7 +11,7 @@ from aic51.packages.logger import logger
 from aic51.packages.search import Searcher
 from aic51.packages.utils import get_device
 
-from .utils import create_app, process_searcher_results
+from .utils import create_app, process_searcher_results, process_search_results
 
 
 def setup_searcher():
@@ -48,7 +48,7 @@ async def search_multimodal(
     q: str,
     offset: int = 0,
     limit: int = 50,
-    target_features: Annotated[list[str], Query()] = [],
+    target_features: str = "",
     nprobe: int = 32,
     temporal_k: int = 10000,
     ocr_weight: float = 0.5,
@@ -62,13 +62,14 @@ async def search_multimodal(
         )
 
     searcher = internal["searcher"]
+    target_features_list = target_features.split(",")
 
     try:
         searcher_res = searcher.search_multimodal(
             q,
             offset,
             limit,
-            target_features,
+            target_features_list,
             nprobe=nprobe,
             temporal_k=temporal_k,
             ocr_weight=ocr_weight,
@@ -84,6 +85,7 @@ async def search_multimodal(
         )
 
     response = process_searcher_results(searcher_res)
+    response = process_search_results(request, response)
 
     response[constant.RESULT_PARAMS_KEY] = {
         "limit": limit,
@@ -105,7 +107,7 @@ async def search_image(
     id: str,
     offset: int = 0,
     limit: int = 50,
-    target_features: Annotated[list[str], Query()] = [],
+    target_features: str = "",
     nprobe: int = 32,
     temporal_k: int = 10000,
     ocr_weight: float = 0.5,
@@ -118,13 +120,14 @@ async def search_image(
         )
 
     searcher = internal["searcher"]
+    target_features_list = target_features.split(",")
 
     try:
         searcher_res = searcher.search_image(
             id,
             offset,
             limit,
-            target_features,
+            target_features_list,
             nprobe=nprobe,
         )
     except Exception as e:
@@ -136,6 +139,7 @@ async def search_image(
         )
 
     response = process_searcher_results(searcher_res)
+    response = process_search_results(request, response)
 
     response[constant.RESULT_PARAMS_KEY] = {
         "limit": limit,

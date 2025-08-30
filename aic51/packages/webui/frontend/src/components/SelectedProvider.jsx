@@ -15,6 +15,15 @@ export default function SelectedProvider({ children }) {
   const addSelected = (frameId) => {
     setSelected(prev => {
       if (!prev.includes(frameId)) {
+        if (prev.length > 0) {
+          const existingVideoId = prev[0].split('#')[0];
+          const newVideoId = frameId.split('#')[0];
+          
+          if (existingVideoId !== newVideoId) {
+            return prev;
+          }
+        }
+        
         return [...prev, frameId];
       }
       return prev;

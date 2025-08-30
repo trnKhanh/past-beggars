@@ -9,6 +9,7 @@ import { useEffect } from "react";
 
 import { searchSimilar } from "../services/search.js";
 import { FrameItem, FrameContainer } from "../components/Frame.jsx";
+import { generateTimelineMap } from "../utils/timelineColors.js";
 import { usePlayVideo } from "../components/VideoPlayer.jsx";
 import { useSelected } from "../components/SelectedProvider.jsx";
 import PreviousButton from "../assets/previous-btn.svg";
@@ -28,6 +29,17 @@ export async function loader({ request }) {
   const searchParams = url.searchParams;
 
   const id = searchParams.get("id");
+  
+  if (!id) {
+    return {
+      query: { id: null },
+      params: {},
+      offset: 0,
+      data: { total: 0, frames: [] },
+      error: "No frame ID provided for similarity search",
+    };
+  }
+
   const _offset = searchParams.get("offset") || 0;
   const selected = searchParams.get("selected") || undefined;
   const limit = searchParams.get("limit") || limitOptions[0];
@@ -35,6 +47,7 @@ export async function loader({ request }) {
   const temporal_k = searchParams.get("temporal_k") || temporal_k_default;
   const ocr_weight = searchParams.get("ocr_weight") || ocr_weight_default;
   const max_interval = searchParams.get("max_interval") || max_interval_default;
+  const target_features = searchParams.get("target_features") || "";
 
   const { total, frames, params, offset } = await searchSimilar(
     id,
@@ -44,7 +57,7 @@ export async function loader({ request }) {
     temporal_k,
     ocr_weight,
     max_interval,
-    selected,
+    target_features,
   );
 
   return {
@@ -61,13 +74,15 @@ export default function SearchSimilar() {
   const submit = useSubmit();
   const { query, params, offset, data } = useLoaderData();
   const playVideo = usePlayVideo();
-  const { getSelectedForSubmit, clearSelected } = useSelected();
+  const { clearSelected } = useSelected();
 
   const { id } = query;
   const { limit, nprobe } = params;
 
   const { total, frames } = data;
   const empty = frames.length === 0;
+  
+  const timelineColorMap = generateTimelineMap(frames);
 
   useEffect(() => {
     document.title = `Similar to ${id}`;
@@ -110,19 +125,12 @@ export default function SearchSimilar() {
   const handleOnSearchNearby = (frame) => {
     submit(
       {
-        q: "video:" + frame.video_id,
+        q: "[video:" + frame.video_id + "]",
         ...params,
         selected: frame.id,
       },
       { action: "/search" },
     );
-  };
-
-  const handleSubmitSelected = () => {
-    const selectedFrameId = getSelectedForSubmit();
-    if (selectedFrameId) {
-      console.log("Submitting selected frame:", selectedFrameId);
-    }
   };
 
   const handleClearSelected = () => {
@@ -136,12 +144,6 @@ export default function SearchSimilar() {
         className="p-1 flex flex-row justify-between items-center text-xl font-bold"
       >
         <div className="flex flex-row items-center">
-          <button
-            onClick={handleSubmitSelected}
-            className="mr-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 active:bg-blue-800"
-          >
-            Submit Selected
-          </button>
           <button
             onClick={handleClearSelected}
             className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 active:bg-red-800"
@@ -199,7 +201,8 @@ export default function SearchSimilar() {
                 id={frame.id}
                 video_id={frame.video_id}
                 frame_id={frame.frame_id}
-                thumbnail={frame.frame_uri}
+                thumbnail={`http://127.0.0.1:6900/api/files/${frame.video_id}/${frame.frame_id}`}
+                timelineColor={timelineColorMap.get(frame.frame_id)}
                 onPlay={() => {
                   handleOnPlay(frame);
                 }}

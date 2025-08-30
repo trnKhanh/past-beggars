@@ -21,10 +21,13 @@ export async function search(
     temporal_k: temporal_k,
     ocr_weight: ocr_weight,
     max_interval: max_interval,
-    selected: selected,
   };
 
-  if (target_features && Array.isArray(target_features) && target_features.length > 0) {
+  if (selected) {
+    params.selected = selected;
+  }
+
+  if (target_features && target_features.length > 0) {
     params.target_features = target_features;
   }
 
@@ -54,7 +57,7 @@ export async function searchSimilar(
     max_interval: max_interval,
   };
 
-  if (target_features && Array.isArray(target_features) && target_features.length > 0) {
+  if (target_features && target_features.length > 0) {
     params.target_features = target_features;
   }
 

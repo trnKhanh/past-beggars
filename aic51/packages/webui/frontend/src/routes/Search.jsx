@@ -13,6 +13,7 @@ import { FrameItem, FrameContainer } from "../components/Frame.jsx";
 import { usePlayVideo } from "../components/VideoPlayer.jsx";
 import { AdvanceQueryContainer } from "../components/AdvanceQuery.jsx";
 import { useSelected } from "../components/SelectedProvider.jsx";
+import { generateTimelineMap } from "../utils/timelineColors.js";
 import PreviousButton from "../assets/previous-btn.svg";
 import NextButton from "../assets/next-btn.svg";
 import HomeButton from "../assets/home-btn.svg";
@@ -50,36 +51,56 @@ export async function loader({ request }) {
   const ocr_weight = searchParams.get("ocr_weight") || ocr_weight_default;
   const max_interval = searchParams.get("max_interval") || max_interval_default;
 
-  let target_features = null;
-  const targetFeaturesParam = searchParams.get("target_features");
-  if (targetFeaturesParam) {
-    try {
-      target_features = JSON.parse(targetFeaturesParam);
-    } catch {
-      target_features = null;
-    }
+  const target_features = searchParams.get("target_features") || "";
+
+  try {
+    const { total, frames, offset } = await search(
+      q,
+      _offset,
+      limit,
+      nprobe,
+      temporal_k,
+      ocr_weight,
+      max_interval,
+      selected,
+      target_features,
+    );
+    const query = q ? { q } : {};
+
+    return {
+      query,
+      params: {
+        limit,
+        nprobe,
+        temporal_k,
+        ocr_weight,
+        max_interval,
+        target_features
+      },
+      selected,
+      offset,
+      data: { total, frames },
+    };
+  } catch (error) {
+    console.error("Search failed:", error);
+    const query = q ? { q } : {};
+    
+    return {
+      query,
+      params: {
+        limit,
+        nprobe,
+        temporal_k,
+        ocr_weight,
+        max_interval,
+        target_features
+      },
+      selected,
+      offset: _offset,
+      data: { total: 0, frames: [] },
+      error: error.message,
+    };
   }
-
-  const { total, frames, params, offset } = await search(
-    q,
-    _offset,
-    limit,
-    nprobe,
-    temporal_k,
-    ocr_weight,
-    max_interval,
-    selected,
-    target_features,
-  );
-  const query = q ? { q } : {};
-
-  return {
-    query,
-    params,
-    selected,
-    offset,
-    data: { total, frames },
-  };
 }
 
 export default function Search() {
@@ -98,6 +119,8 @@ export default function Search() {
 
   const { total, frames } = data;
   const empty = frames.length === 0;
+  
+  const timelineColorMap = generateTimelineMap(frames);
 
   useEffect(() => {
     setCurrentQuery(q);
@@ -200,25 +223,23 @@ export default function Search() {
   }, [offset]);
 
   const goToFirstPage = () => {
-    submit({
-      ...query,
-      ...params,
-      offset: 0,
-    });
+    submit({ ...query, ...params, offset: 0 });
   };
+  
   const goToPreviousPage = () => {
-    submit({
-      ...query,
-      ...params,
-      offset: Math.max(parseInt(offset) - parseInt(limit), 0),
+    submit({ 
+      ...query, 
+      ...params, 
+      offset: Math.max(parseInt(offset) - parseInt(limit), 0) 
     });
   };
+  
   const goToNextPage = () => {
     if (!empty) {
-      submit({
-        ...query,
-        ...params,
-        offset: parseInt(offset) + parseInt(limit),
+      submit({ 
+        ...query, 
+        ...params, 
+        offset: parseInt(offset) + parseInt(limit) 
       });
     }
   };
@@ -233,7 +254,7 @@ export default function Search() {
   const handleOnSearchNearby = (frame) => {
     submit(
       {
-        q: "video:" + frame.video_id,
+        q: "[video:" + frame.video_id + "]",
         ...params,
         selected: frame.id,
       },
@@ -244,7 +265,39 @@ export default function Search() {
   const handleSubmitSelected = () => {
     const selectedFrameId = getSelectedForSubmit();
     if (selectedFrameId) {
-      console.log("Submitting selected frame:", selectedFrameId);
+      const [videoId, frameId] = selectedFrameId.split('#');
+      
+      const queryType = 'kis'; 
+      
+      let csvContent = '';
+      
+      if (queryType === 'kis') {
+        csvContent = `${videoId}, ${frameId}`;
+      } else if (queryType === 'qa') {
+        const answer = prompt("Enter your answer (max 100 characters):");
+        if (answer && answer.length <= 100) {
+          const escapedAnswer = answer.includes(',') || answer.includes('"') ? 
+            `"${answer.replace(/"/g, '""')}"` : answer;
+          csvContent = `${videoId}, ${frameId}, ${escapedAnswer}`;
+        } else {
+          alert("Answer is required and must be 100 characters or less");
+          return;
+        }
+      }
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `query-result-${queryType}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      console.log("Generated CSV content:", csvContent);
+    } else {
+      alert("Please select a frame first");
     }
   };
 
@@ -253,19 +306,16 @@ export default function Search() {
   };
   const handleOnSearch = (e) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = {};
-    for (const [k, v] of formData.entries()) {
-      data[k] = v;
+    
+    const url = new URL(window.location);
+    const currentParams = {};
+    for (const [key, value] of url.searchParams) {
+      if (!['offset'].includes(key)) {
+        currentParams[key] = value;
+      }
     }
-    document.activeElement.blur();
-    submit(
-      {
-        ...data,
-        ...params,
-      },
-      { action: "/search" },
-    );
+    
+    submit({ q: currentQuery, ...currentParams, offset: 0 });
   };
 
   console.log(frames);
@@ -296,15 +346,19 @@ export default function Search() {
                 // Bad practice
                 if (e.keyCode === 13 && e.shiftKey === false) {
                   e.preventDefault();
-                  document.querySelector("#search-form input[type=submit]").click();
+                  handleOnSearch(e);
                 }
               }}
             />
-            <input
+            <button
               className="self-center text-sm py-1 px-2 border rounded bg-gray-600 text-white hover:bg-gray-500 active:bg-gray-400"
-              type="submit"
-              value="Search"
-            />
+              type="button"
+              onClick={(e) => {
+                handleOnSearch(e);
+              }}
+            >
+              Search
+            </button>
           </div>
         </div>
       </Form>
@@ -315,10 +369,7 @@ export default function Search() {
           setCurrentQuery(newQ);
         }}
         onSubmit={() => {
-          submit({
-            q: currentQuery,
-            ...params,
-          }, { action: "/search" });
+          submit({ q: currentQuery, ...params });
         }}
       />
 
@@ -390,7 +441,8 @@ export default function Search() {
                 id={frame.id}
                 video_id={frame.video_id}
                 frame_id={frame.frame_id}
-                thumbnail={frame.frame_uri}
+                thumbnail={`http://127.0.0.1:6900/api/files/${frame.video_id}/${frame.frame_id}`}
+                timelineColor={timelineColorMap.get(frame.frame_id)}
                 onPlay={() => {
                   handleOnPlay(frame);
                 }}

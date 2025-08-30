@@ -52,7 +52,7 @@ export function TemporalQueryContainer({
   temporalQuery,
   onChange,
   onDelete,
-  onSubmit,
+  onSubmit
 }) {
   const parseQuery = (queryString) => {
     let q = queryString;
@@ -124,7 +124,7 @@ export function TemporalQueryContainer({
         onClick={() => {
           onDelete();
         }}
-      />
+       alt={"Delete Button"}/>
       <textarea
         className="text-sm bg-slate-100 text-slate-400 focus:bg-white focus:text-black focus:outline-none"
         rows={2}

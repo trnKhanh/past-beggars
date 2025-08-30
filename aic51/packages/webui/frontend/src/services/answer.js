@@ -2,8 +2,13 @@ import localforage from "localforage";
 
 export function processAnswer(answer) {
   if ("time" in answer) answer.time = parseFloat(answer.time);
-  if ("frame_counter" in answer)
-    answer.frame_counter = parseFloat(answer.frame_counter);
+  if ("frame_counter" in answer) {
+    if (typeof answer.frame_counter === 'string' && answer.frame_counter.includes(',')) {
+      answer.frame_counter = answer.frame_counter;
+    } else {
+      answer.frame_counter = parseFloat(answer.frame_counter);
+    }
+  }
   if ("correct" in answer) answer.correct = parseInt(answer.correct);
   return answer;
 }
@@ -67,6 +72,11 @@ export async function deleteAnswer(id) {
 }
 
 export function getCSV(answer, n, step) {
+  if (answer.frame_counter && typeof answer.frame_counter === 'string' && answer.frame_counter.includes(',')) {
+    const frameCounters = answer.frame_counter.split(',').map(fc => fc.trim());
+    return `${answer.video_id},${frameCounters.join(',')}`;
+  }
+  
   let fileData = "";
   let center = parseInt(answer.frame_id || answer.frame_counter);
 
@@ -79,7 +89,7 @@ export function getCSV(answer, n, step) {
       ? Math.round(center - offset)
       : Math.round(center + offset);
     if (fileData !== "") fileData += "\n";
-    if (answer.answer.length > 0)
+    if (answer.answer && answer.answer.length > 0)
       fileData += `${answer.video_id},${Math.round(curFrame)},${answer.answer}`;
     else fileData += `${answer.video_id},${Math.round(curFrame)}`;
   }
