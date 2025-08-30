@@ -427,7 +427,7 @@ export default function Search() {
                     return (
                       <FrameItem
                         key={String(frame.id) + String(idx) + String(keyframe)}
-                        id={frame.id}
+                        id={`${frame.video_id}#${keyframe}`}
                         video_id={frame.video_id}
                         frame_id={keyframe}
                         thumbnail={`http://127.0.0.1:6900/api/files/${frame.video_id}/${keyframe}`}

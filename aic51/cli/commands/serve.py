@@ -81,15 +81,13 @@ class ServeCommand(BaseCommand):
 
     def _start_frontend(self, dev_mode: bool):
         self._install_frontend()
+        core_port = GlobalConfig.get("backends", "core", "port") or constant.DEFAULT_CORE_PORT
+        os.environ["VITE_PORT"] = str(core_port)
         if dev_mode:
-            dev_port = GlobalConfig.get("frontend", "dev_port") or constant.DEFAULT_FRONTEND_PORT
-
             dev_cmd = ["npm", "run", "dev"]
 
             dev_env = os.environ.copy()
-            dev_env["VITE_PORT"] = str(dev_port)
 
-            logger.info(f"Starting frontend server at port {dev_port}")
             frontend_process = subprocess.Popen(dev_cmd, env=dev_env, cwd=str(self._frontend_dir))
         else:
             self._build_frontend()

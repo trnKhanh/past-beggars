@@ -118,7 +118,6 @@ class IndexCommand(BaseCommand):
             if GlobalConfig.get("features", feature_name):
                 feature_fields.append(feature_name)
 
-
         frame_features_paths = [x for x in video_features_dir.glob("*") if x.is_dir()]
 
         update_progress(description="Indexing", completed=0, total=len(frame_features_paths))
@@ -140,11 +139,10 @@ class IndexCommand(BaseCommand):
                 if feature.dtype.kind == "U":
                     feature = feature.tolist()
 
-
                 data[feature_name] = feature
 
             if all([f in data for f in feature_fields]):
-                data_list.append(data)
+                data_list.append({database.process_field_name(k): v for k, v in data.items()})
             else:
                 logger.warning(f"Skipping {data['frame_id']}: Lack of features")
 

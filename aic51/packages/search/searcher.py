@@ -112,7 +112,7 @@ class Searcher(object):
             reqs.append(
                 AnnSearchRequest(
                     data=[image_embedding],
-                    anns_field=target_name,
+                    anns_field=self._database.process_field_name(target_name),
                     param=target_param,
                     limit=limit,
                 )
@@ -156,7 +156,9 @@ class Searcher(object):
         video_filter = self._get_video_filter(video_ids)
 
         reqs = []
+        subquery_limit = offset + limit
         if "text" in query_features:
+            text_embeddings = {}
             for target_name in target_features:
                 if target_name not in self._features:
                     logger.warning(f"searcher: {target_name} is invalid feature")
@@ -168,16 +170,17 @@ class Searcher(object):
                 }
 
                 m = self._features[target_name]
-                text_embedding = (
-                    self._extractors[m]["feature_extractor"].get_text_features(query_features["text"]).tolist()[0]
-                )
+                if m not in text_embeddings:
+                    text_embeddings[m] = (
+                        self._extractors[m]["feature_extractor"].get_text_features(query_features["text"]).tolist()[0]
+                    )
 
                 reqs.append(
                     AnnSearchRequest(
-                        data=[text_embedding],
-                        anns_field=target_name,
+                        data=[text_embeddings[m]],
+                        anns_field=self._database.process_field_name(target_name),
                         param=target_param,
-                        limit=limit,
+                        limit=subquery_limit,
                         expr=video_filter,
                     )
                 )
@@ -192,7 +195,7 @@ class Searcher(object):
                         data=[ocr],
                         anns_field=self._ocr_name,
                         param={},
-                        limit=limit,
+                        limit=subquery_limit,
                         expr=video_filter,
                     )
                 )

@@ -47,6 +47,10 @@ class MilvusDatabase(object):
 
         self._client.load_collection(self._collection_name)
 
+    def process_field_name(self, field_name: str):
+        res = field_name.replace("-", "_")
+        return res
+
     def _create_schema(self):
         logger.info(f'"{self._collection_name}": Creating schema')
         schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
@@ -58,7 +62,7 @@ class MilvusDatabase(object):
             for feature_name in features.keys():
                 datatype = GlobalConfig.get("features", feature_name, "index", "datatype")
                 assert datatype is not None, f"{feature_name} has unspecified datatype"
-                new_field = {"field_name": feature_name, "datatype": datatype}
+                new_field = {"field_name": self.process_field_name(feature_name), "datatype": datatype}
 
                 default = GlobalConfig.get("features", feature_name, "index", "default_value")
 
@@ -119,14 +123,14 @@ class MilvusDatabase(object):
                 new_index = {}
 
                 if index_type.lower() == "bm25":
-                    new_index["field_name"] = f"{feature_name}_sparse"
+                    new_index["field_name"] = f"{self.process_field_name(feature_name)}_sparse"
                     new_index["index_type"] = "SPARSE_INVERTED_INDEX"
-                    new_index["index_name"] = f"{feature_name}_BM25"
+                    new_index["index_name"] = f"{self.process_field_name(feature_name)}_BM25"
                     new_index["metric_type"] = f"BM25"
                 else:
-                    new_index["field_name"] = feature_name
+                    new_index["field_name"] = self.process_field_name(feature_name)
                     new_index["index_type"] = index_type
-                    new_index["index_name"] = f"{feature_name}_{index_type}"
+                    new_index["index_name"] = f"{self.process_field_name(feature_name)}_{index_type}"
 
                     metric_type = GlobalConfig.get("features", feature_name, "index", "metric_type")
                     if metric_type:
@@ -191,7 +195,7 @@ class MilvusDatabase(object):
             filter=filter,
             offset=offset,
             limit=limit,
-            anns_field=anns_field,
+            anns_field=self.process_field_name(anns_field),
             search_params=search_params,
             output_fields=["*"],
         )
