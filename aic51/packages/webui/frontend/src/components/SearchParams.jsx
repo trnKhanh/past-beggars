@@ -48,15 +48,9 @@ export default function SearchParams() {
       }
     }
 
-    // Handle target_features from URL parameters
     const targetFeaturesParam = searchParams.get('target_features');
     if (targetFeaturesParam) {
-      try {
-        const features = JSON.parse(targetFeaturesParam);
-        setSelectedFeatures(Array.isArray(features) ? features : []);
-      } catch {
-        setSelectedFeatures([]);
-      }
+      setSelectedFeatures(targetFeaturesParam.split(',').filter(f => f.trim()));
     } else {
       setSelectedFeatures([]);
     }
@@ -82,7 +76,7 @@ export default function SearchParams() {
     
     const submitData = { ...query, ...data };
     if (targetFeaturesSelected.length > 0) {
-      submitData.target_features = JSON.stringify(targetFeaturesSelected);
+      submitData.target_features = targetFeaturesSelected.join(',');
     }
     if (selected) {
       submitData.selected = selected;

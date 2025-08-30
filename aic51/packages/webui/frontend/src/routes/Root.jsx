@@ -24,7 +24,7 @@ export default function Root() {
         <div className="flex flex-row">
           <div className="flex flex-col">
             <SearchParams />
-            <div className="w-96">
+            <div className="w-96 z-10">
               <AnswerSidebar />
             </div>
           </div>

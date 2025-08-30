@@ -447,13 +447,13 @@ import { getBlob, downloadFile } from "../utils/files.js";
 import { getFrameInfo } from "../services/search.js";
 
 function AnswerItem({
-                        answer,
-                        onSelect,
-                        selected,
-                        onClick,
-                        inList,
-                        onDownload,
-                    }) {
+    answer,
+    onSelect,
+    selected,
+    onClick,
+    inList,
+    onDownload,
+}) {
     const [isEditing, setIsEditing] = useState(false);
     const submit = useSubmit();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -472,10 +472,11 @@ function AnswerItem({
         }
     };
     const handleOnPlay = async (e) => {
-        const frameInfo = await getFrameInfo(answer.video_id, answer.frame_counter);
-        frameInfo.frame_counter = answer.frame_counter;
-        playVideo(frameInfo);
+        const frameInfo = await getFrameInfo(answer.video_id, answer.frame_id);
+        frameInfo.frame_counter = answer.frame_counter[0];
+        playVideo(frameInfo, frameInfo.frame_id);
     };
+
     const handleOnFind = async () => {
         const frameInfo = await getFrameInfo(answer.video_id, answer.frame_id);
         if (!frameInfo.id) {
@@ -664,6 +665,16 @@ function AnswerDetail({ answer }) {
                     {answer.frame_id}
                 </div>
                 <div className="">
+                    <span className="font-bold">Frame Counter</span>
+                    {": "}
+                    <div className="flex flex-col">
+                        {answer.frame_counter.map((e) => (
+                            <span key={e}>{e} </span>
+                        ))}
+                    </div>
+
+                </div>
+                <div className="">
                     <span className="font-bold">Answer</span>
                     {": "}
                     {answer.answer}
@@ -677,7 +688,12 @@ function AnswerHeader({}) {
     const fetcher = useFetcher({ key: "answers" });
     const { selected } = useSelected();
     
-    const selectedFramesText = selected.length > 0 ? selected.join(", ") : "";
+    const selectedFramesText = selected.length > 0 ? selected.map(frameId => {
+        const [, frameCounter] = frameId.split('#');
+        return frameCounter;
+    }).join(", ") : "";
+    
+    const videoId = selected.length > 0 ? selected[0].split('#')[0] : "";
     
     return (
         <fetcher.Form action="/answers" method="POST">
@@ -696,7 +712,9 @@ function AnswerHeader({}) {
                     name="video_id"
                     placeholder="Video ID"
                     autoComplete="off"
+                    value={videoId}
                     className="basis-1/3 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
+                    onChange={(e) => {}}
                 />
                 <input
                     required
@@ -751,6 +769,7 @@ export default function AnswerSidebar({}) {
     const [downloadN, setDownloadN] = useState(5);
     const [downloadList, setDownloadList] = useState([]);
     const playVideo = usePlayVideo();
+    const { selected: selectedFrames, clearSelected } = useSelected();
 
     useEffect(() => {
         if (fetcher.state === "idle" && !fetcher.data) {
@@ -786,11 +805,89 @@ export default function AnswerSidebar({}) {
         });
     };
 
+    const handleAddSingle = () => {
+        const form = document.querySelector('form[action="/answers"]');
+        if (form) {
+            const formData = new FormData(form);
+            
+            if (!formData.get('query_id') || !formData.get('video_id')) {
+                alert("Please fill in Query ID and Video ID before adding.");
+                return;
+            }
+            
+            fetcher.submit(form);
+            console.log("Submitted form with existing values");
+        }
+    };
+
+    const handleTemporalSubmit = () => {
+        if (selectedFrames.length < 2) {
+            alert("Temporal sequence requires multiple frames. Please select at least 2 frames.");
+            return;
+        }
+
+        const queryIdInput = document.querySelector('input[name="query_id"]');
+        const videoIdInput = document.querySelector('input[name="video_id"]');
+        
+        if (!queryIdInput?.value || !videoIdInput?.value) {
+            alert("Please enter Query ID and Video ID before adding temporal sequence.");
+            return;
+        }
+
+        const queryId = queryIdInput.value;
+        const videoId = videoIdInput.value;
+        
+        const frameCounters = selectedFrames.map(frameId => {
+            const [, frameCounter] = frameId.split('#');
+            return frameCounter;
+        }).join(', ');
+        
+        fetcher.submit({
+            query_id: queryId,
+            video_id: videoId,
+            frame_counter: frameCounters,
+            answer: ''
+        }, {
+            method: "POST",
+            action: "/answers"
+        });
+        
+        console.log("Added temporal sequence:", {
+            query_id: queryId,
+            video_id: videoId,
+            frame_counter: frameCounters
+        });
+    };
+
     return (
         <div className="relative p-2">
             <div className="flex flex-col">
                 <AnswerHeader />
                 <SelectedFramesPreview />
+                <div className="p-2 bg-gray-100 border border-gray-300 rounded mb-2">
+                    <div className="flex flex-row space-x-2">
+                        <button
+                            onClick={handleAddSingle}
+                            disabled={selectedFrames.length === 0}
+                            className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                            Add
+                        </button>
+                        <button
+                            onClick={handleTemporalSubmit}
+                            disabled={selectedFrames.length < 2}
+                            className="flex-1 px-3 py-2 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 active:bg-orange-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                            Add Temporal ({selectedFrames.length})
+                        </button>
+                        <button
+                            onClick={() => clearSelected()}
+                            className="px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 active:bg-red-800"
+                        >
+                            Clear
+                        </button>
+                    </div>
+                </div>
                 <Form onSubmit={handleOnBulkDownload}>
                     <div className="flex flex-col items-center p-1 w-full bg-red-100">
                         <div className="flex flex-row justify-center items-center">

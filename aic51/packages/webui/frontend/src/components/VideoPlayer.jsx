@@ -7,8 +7,9 @@ export const VideoContext = createContext({ playVideo: null });
 
 export default function VideoProvider({ children }) {
   const [frameInfo, setFrameInfo] = useState(null);
-  const playVideo = async (f) => {
-    const res = await getFrameInfo(f.video_id, f.frame_id);
+  const playVideo = async (f, keyframe) => {
+    const res = await getFrameInfo(f.video_id, keyframe);
+    res.frame_id = keyframe;
     setFrameInfo(res);
   };
   const handleOnCancle = () => {
@@ -139,7 +140,7 @@ function VideoPlayer({ frameInfo, onCancle }) {
         e.stopPropagation();
         onCancle();
       }}
-      className="fixed flex items-center justify-center z-10 w-screen h-screen bg-black bg-opacity-25"
+      className="fixed flex items-center justify-center z-10 w-screen h-screen bg-black bg-opacity-25 z-20"
     >
       <div
         className="p-2 bg-white rounded-xl"
