@@ -213,10 +213,11 @@ function VideoPlayer({ frameInfo, onCancle }) {
         </div>
         <video
           ref={videoElementRef}
-          id="playing-video"
+          id="playing-vide"
           key={frameInfo.video_uri}
           controls
           autoPlay
+          className="w-auto h-[40rem]"
         >
           <source src={frameInfo.video_uri} type="video/mp4" />
         </video>

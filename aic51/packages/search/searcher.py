@@ -95,6 +95,7 @@ class Searcher(object):
             return {"results": [], "total": 0, "offset": 0}
 
         reqs = []
+        subquery_limit = offset + limit
 
         for target_name in target_features:
             if target_name not in self._features:
@@ -107,14 +108,14 @@ class Searcher(object):
             }
 
             m = self._features[target_name]
-            image_embedding = record[0][target_name]
+            image_embedding = record[0][self._database.process_field_name(target_name)]
 
             reqs.append(
                 AnnSearchRequest(
                     data=[image_embedding],
                     anns_field=self._database.process_field_name(target_name),
                     param=target_param,
-                    limit=limit,
+                    limit=subquery_limit,
                 )
             )
 
