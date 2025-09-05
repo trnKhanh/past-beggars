@@ -83,6 +83,12 @@ class AddCommand(BaseCommand):
             action="store_true",
             help="Compress videos",
         )
+        parser.add_argument(
+            "--compress-first",
+            dest="do_compress_first",
+            action="store_true",
+            help="Compress the video right after loading",
+        )
 
         parser.set_defaults(func=self)
 
@@ -96,6 +102,7 @@ class AddCommand(BaseCommand):
         do_audio: bool,
         do_clip: bool,
         do_compress: bool,
+        do_compress_first: bool,
         verbose: bool,
         *args,
         **kwargs,
@@ -128,6 +135,7 @@ class AddCommand(BaseCommand):
             do_audio,
             do_clip,
             do_compress,
+            do_compress_first,
             verbose,
         )
 
@@ -140,6 +148,7 @@ class AddCommand(BaseCommand):
         do_audio: bool,
         do_clip: bool,
         do_compress: bool,
+        do_compress_first: bool,
         verbose: bool,
     ):
         max_workers_ratio = GlobalConfig.get("max_workers_ratio") or 0
@@ -172,6 +181,9 @@ class AddCommand(BaseCommand):
                         show_progress(task_id),
                     )
 
+                    if status_ok and do_compress and do_compress_first:
+                        self._compress_video(video_id, show_progress(task_id))
+
                     if do_audio:
                         self._extract_audio(output_path, do_overwrite, show_progress(task_id))
 
@@ -183,7 +195,8 @@ class AddCommand(BaseCommand):
                             do_clip,
                             show_progress(task_id),
                         )
-                    if status_ok and do_compress:
+
+                    if status_ok and do_compress and not do_compress_first:
                         self._compress_video(video_id, show_progress(task_id))
 
                     progress.remove_task(task_id)
