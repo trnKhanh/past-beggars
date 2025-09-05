@@ -107,7 +107,11 @@ class AddCommand(BaseCommand):
             sys.exit(1)
 
         if do_multi:
-            video_paths = [v for v in video_path.glob("*") if v.suffix.lower() in self.SUPPORTED_EXT and not v.is_dir()]
+            video_paths = [
+                v
+                for v in video_path.glob("*")
+                if v.suffix.lower() in self.SUPPORTED_EXT and not v.is_dir()
+            ]
         else:
             if video_path.is_dir():
                 self._logger.error(f"{video_path}: Not a file")
@@ -116,7 +120,16 @@ class AddCommand(BaseCommand):
             video_paths = [video_path]
 
         video_paths = sorted(video_paths, key=lambda path: path.stem)
-        self._add_videos(video_paths, do_move, do_overwrite, do_keyframe, do_audio, do_clip, do_compress, verbose)
+        self._add_videos(
+            video_paths,
+            do_move,
+            do_overwrite,
+            do_keyframe,
+            do_audio,
+            do_clip,
+            do_compress,
+            verbose,
+        )
 
     def _add_videos(
         self,
@@ -181,10 +194,15 @@ class AddCommand(BaseCommand):
                         description=f"Error: {str(e)}",
                     )
 
+            futures = []
             for path in video_paths:
-                executor.submit(add_one_video, path)
+                futures.append(executor.submit(add_one_video, path))
+            for f in futures:
+                f.result()
 
-    def _load_video(self, video_path: Path, do_move: bool, do_overwrite: bool, update_progress: Callable):
+    def _load_video(
+        self, video_path: Path, do_move: bool, do_overwrite: bool, update_progress: Callable
+    ):
         update_progress(description=f"Saving video", completed=0, total=1)
 
         video_id = video_path.stem
@@ -205,8 +223,14 @@ class AddCommand(BaseCommand):
 
         return 1, output_path, video_id
 
+
     def _extract_keyframes(
-        self, video_path: Path, do_overwrite: bool, do_audio: bool, do_clip: bool, update_progress: Callable
+        self,
+        video_path: Path,
+        do_overwrite: bool,
+        do_audio: bool,
+        do_clip: bool,
+        update_progress: Callable,
     ):
         audio_path = self._work_dir / constant.AUDIO_DIR / f"{video_path.stem}.wav"
         keyframe_dir = self._work_dir / constant.KEYFRAME_DIR / f"{video_path.stem}"
@@ -256,7 +280,9 @@ class AddCommand(BaseCommand):
             audio_length = clip_length * audio_fps  # in frames
             audio_clip_interval = audio_length // 7
         else:
-            wave_params = audio_fps = audio_frames = audio_frame_size = audio_length = audio_clip_interval = None
+            wave_params = audio_fps = audio_frames = audio_frame_size = audio_length = (
+                audio_clip_interval
+            ) = None
 
         update_progress(description=f"Extracting keyframes", completed=0, total=len(keyframes_list))
 
@@ -272,7 +298,9 @@ class AddCommand(BaseCommand):
 
             default_size_frame = cv2.resize(frame, default_size)
 
-            resized_frame = cv2.resize(default_size_frame, None, fx=keyframe_ratio, fy=keyframe_ratio)
+            resized_frame = cv2.resize(
+                default_size_frame, None, fx=keyframe_ratio, fy=keyframe_ratio
+            )
             video_frames.append(resized_frame)
 
             if len(video_frames) >= 2 * video_length:
@@ -302,7 +330,9 @@ class AddCommand(BaseCommand):
                 if do_clip:
                     video_frame_center = len(video_frames) - video_length + 1
                     video_start_frame = max(0, video_frame_center - video_clip_interval * 3)
-                    video_end_frame = min(len(video_frames) - 1, video_start_frame + video_clip_interval * 7)
+                    video_end_frame = min(
+                        len(video_frames) - 1, video_start_frame + video_clip_interval * 7
+                    )
 
                     video_writer = cv2.VideoWriter(
                         str(video_clips_dir / f"{video_frame_counter:06d}.mp4"),
@@ -324,13 +354,20 @@ class AddCommand(BaseCommand):
 
                         audio_frame_counter = round(video_frame_counter / video_fps * audio_fps)
                         audio_start_frame = max(0, audio_frame_counter - audio_clip_interval * 3)
-                        audio_end_frame = min(len(audio_frames) - 1, audio_start_frame + audio_clip_interval * 7)
+                        audio_end_frame = min(
+                            len(audio_frames) - 1, audio_start_frame + audio_clip_interval * 7
+                        )
 
-                        with wave.open(str(audio_clips_dir / f"{video_frame_counter:06d}.wav"), "wb") as f:
+                        with wave.open(
+                            str(audio_clips_dir / f"{video_frame_counter:06d}.wav"), "wb"
+                        ) as f:
                             f.setparams(wave_params)
                             f.writeframes(
                                 audio_frames[
-                                    audio_start_frame * audio_frame_size : audio_end_frame * audio_frame_size + 1
+                                    audio_start_frame
+                                    * audio_frame_size : audio_end_frame
+                                    * audio_frame_size
+                                    + 1
                                 ]
                             )
 
@@ -414,7 +451,10 @@ class AddCommand(BaseCommand):
         ffmpeg_cmd = (
             ["ffmpeg", "-v", "quiet", "-y"]
             + ["-i", str(video_path)]
-            + ["-vf", f"scale={default_size[0]}*{compress_size_rate}:{default_size[1]}*{compress_size_rate}"]
+            + [
+                "-vf",
+                f"scale={default_size[0]}*{compress_size_rate}:{default_size[1]}*{compress_size_rate}",
+            ]
             + [
                 "-c:v",
                 "libx264",
