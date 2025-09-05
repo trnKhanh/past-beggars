@@ -117,7 +117,6 @@ class ValidateCommand(BaseCommand):
             if not ret:
                 break
 
-            default_size_frame = cv2.resize(frame, default_size)
 
             if frame_counter in keyframes_list:
                 update_progress(advance=1)
@@ -125,12 +124,8 @@ class ValidateCommand(BaseCommand):
                 thumbnail_path = thumbnail_dir / f"{frame_counter:06d}.jpg"
                 if not thumbnail_path.exists():
                     if do_fix:
-                        thumbnail = cv2.resize(
-                            default_size_frame,
-                            None,
-                            fx=keyframe_ratio * thumbnail_ratio,
-                            fy=keyframe_ratio * thumbnail_ratio,
-                        )
+                        resize_rate = keyframe_ratio * thumbnail_ratio
+                        thumbnail = cv2.resize(frame, [int(s * resize_rate) for s in default_size])
                         cv2.imwrite(
                             str(thumbnail_path),
                             thumbnail,
