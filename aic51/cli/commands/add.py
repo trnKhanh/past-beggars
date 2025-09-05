@@ -236,6 +236,7 @@ class AddCommand(BaseCommand):
 
         return 1, output_path, video_id
 
+
     def _extract_keyframes(
         self,
         video_path: Path,

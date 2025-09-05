@@ -117,7 +117,6 @@ class ValidateCommand(BaseCommand):
             if not ret:
                 break
 
-
             if frame_counter in keyframes_list:
                 update_progress(advance=1)
 
