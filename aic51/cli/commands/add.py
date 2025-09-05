@@ -181,15 +181,19 @@ class AddCommand(BaseCommand):
                         show_progress(task_id),
                     )
 
+                    if do_move:
+                        video_path = output_path
+
                     if status_ok and do_compress and do_compress_first:
                         self._compress_video(video_id, show_progress(task_id))
 
                     if do_audio:
-                        self._extract_audio(output_path, do_overwrite, show_progress(task_id))
+                        self._extract_audio(video_path, do_overwrite, show_progress(task_id))
 
                     if do_keyframe:
                         self._extract_keyframes(
                             output_path,
+                            video_path,
                             do_overwrite,
                             do_audio,
                             do_clip,
@@ -236,10 +240,10 @@ class AddCommand(BaseCommand):
 
         return 1, output_path, video_id
 
-
     def _extract_keyframes(
         self,
         video_path: Path,
+        raw_video_path: Path,
         do_overwrite: bool,
         do_audio: bool,
         do_clip: bool,
@@ -269,7 +273,7 @@ class AddCommand(BaseCommand):
                 audio_clips_dir.mkdir(parents=True, exist_ok=True)
 
         update_progress(description=f"Finding keyframes", completed=0, total=1)
-        keyframes_list = self._get_keyframes_list(video_path)
+        keyframes_list = self._get_keyframes_list(raw_video_path)
         update_progress(advance=1)
         video_fps = self._get_fps(video_path)
 
