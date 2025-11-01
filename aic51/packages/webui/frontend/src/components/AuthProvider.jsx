@@ -15,6 +15,7 @@ export const AuthContext = createContext({
   submitAnswer: null,
 });
 
+// eslint-disable-next-line react/prop-types
 export default function AuthProvider({ children }) {
   const fetcher = useFetcher({ key: "answers" });
   const [username, setUsername] = useState("");
@@ -35,13 +36,16 @@ export default function AuthProvider({ children }) {
           evalIds.push({
             id: e["id"],
             name: e["name"],
+            type: e["type"],
+            status: e["status"]
           });
         }
         setEvaluationIds(evalIds);
       }
     };
-    fetchEval();
+    fetchEval().then();
   }, []);
+
   const updateAuth = async (username, password) => {
     setUsername(username);
     setPassword(password);
@@ -58,6 +62,8 @@ export default function AuthProvider({ children }) {
           evalIds.push({
             id: e["id"],
             name: e["name"],
+            type: e["type"],
+            status: e["status"]
           });
         }
         setEvaluationIds(evalIds);

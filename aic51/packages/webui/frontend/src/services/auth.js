@@ -3,7 +3,7 @@ import axios from "axios";
 export async function signIn(username, password) {
   try {
     const res = await axios.post(
-      "https://eventretrieval.one/api/v2/login",
+      "https://eventretrieval.oj.io.vn/api/v2/login",
       { username: username, password: password },
       { headers: { "Content-Type": "application/json" } },
     );
@@ -17,7 +17,7 @@ export async function signIn(username, password) {
 export async function getEvaluationIdAPI(sessionId) {
   try {
     const res = await axios.get(
-      "https://eventretrieval.one/api/v2/client/evaluation/list",
+      "https://eventretrieval.oj.io.vn/api/v2/client/evaluation/list",
       { params: { session: sessionId } },
     );
     return res;
@@ -59,7 +59,7 @@ export async function submitAnswerAPI(sessionId, answer) {
     }
     const evaluationId = answer.query_id;
     const res = await axios.post(
-      `https://eventretrieval.one/api/v2/submit/${evaluationId}`,
+      `https://eventretrieval.oj.io.vn/api/v2/submit/${evaluationId}`,
       answerData,
       {
         params: { session: sessionId },
