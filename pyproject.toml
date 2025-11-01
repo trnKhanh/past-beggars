@@ -25,7 +25,8 @@ dependencies = [
   "jupyter",
   "open_clip_torch",
   "pytesseract",
-  "apscheduler"
+  "apscheduler",
+  "pydantic~=2.12.3"
 ]
 
 [project.scripts]

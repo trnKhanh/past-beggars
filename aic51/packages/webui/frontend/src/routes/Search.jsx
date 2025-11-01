@@ -301,11 +301,7 @@ export default function Search() {
       alert("Please select a frame first");
     }
   };
-
-  const handleClearSelected = () => {
-    clearSelected();
-  };
-  const handleOnSearch = (e) => {
+    const handleOnSearch = (e) => {
     e.preventDefault();
     
     const url = new URL(window.location);
@@ -332,6 +328,7 @@ export default function Search() {
                 invisible: navigation.state !== "loading",
               })}
               src={SpinIcon}
+              alt="Loading"
             />
             <textarea
               form="search-form"
@@ -386,6 +383,7 @@ export default function Search() {
             width="50em"
             src={HomeButton}
             draggable="false"
+            alt="Go to first page"
           />
 
           <img
@@ -396,8 +394,9 @@ export default function Search() {
             width="50em"
             src={PreviousButton}
             draggable="false"
+            alt="Go to previous page"
           />
-          <div className="w-10 text-center">{Math.floor(offset / limit) + 1}</div>
+          <div className="w-10 text-center">{(offset && limit) ? Math.floor(offset / limit) + 1 : 0}</div>
           <img
             onClick={() => {
               goToNextPage();
@@ -406,6 +405,7 @@ export default function Search() {
             width="50em"
             src={NextButton}
             draggable="false"
+            alt="Go to next page"
           />
       </div>
       {empty ? (

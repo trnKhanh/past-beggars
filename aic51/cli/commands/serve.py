@@ -82,15 +82,19 @@ class ServeCommand(BaseCommand):
     def _start_frontend(self, dev_mode: bool):
         self._install_frontend()
         core_port = GlobalConfig.get("backends", "core", "port") or constant.DEFAULT_CORE_PORT
-        os.environ["VITE_PORT"] = str(core_port)
+
+        frontend_env = os.environ.copy()
+        frontend_env["VITE_PORT"] = str(core_port)
+
         if dev_mode:
+            frontend_env["MODE"] = "development"
             dev_cmd = ["npm", "run", "dev"]
 
-            dev_env = os.environ.copy()
-
-            frontend_process = subprocess.Popen(dev_cmd, env=dev_env, cwd=str(self._frontend_dir))
+            logger.info(f"Starting frontend in development mode on port {core_port}")
+            frontend_process = subprocess.Popen(dev_cmd, env=frontend_env, cwd=str(self._frontend_dir))
         else:
-            self._build_frontend()
+            frontend_env["MODE"] = "production"
+            self._build_frontend(frontend_env)
             frontend_process = None
 
         return frontend_process
@@ -186,13 +190,14 @@ class ServeCommand(BaseCommand):
             cwd=str(self._frontend_dir),
         )
 
-    def _build_frontend(self):
+    def _build_frontend(self, env=None):
         logger.info("Building frontend dist")
         build_cmd = ["npm", "run", "build"]
 
         subprocess.run(
             build_cmd,
             cwd=str(self._frontend_dir),
+            env=env,
         )
         built_dir = self._frontend_dir / "dist"
 
