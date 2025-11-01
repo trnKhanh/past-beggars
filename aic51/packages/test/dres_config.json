@@ -1,0 +1,53 @@
+{
+  "users": {
+    "team1": {
+      "id": "user-001",
+      "username": "team1",
+      "password": "password123",
+      "role": "PARTICIPANT"
+    },
+    "team2": {
+      "id": "user-002",
+      "username": "team2",
+      "password": "password456",
+      "role": "PARTICIPANT"
+    },
+    "admin": {
+      "id": "user-admin",
+      "username": "admin",
+      "password": "admin123",
+      "role": "ADMIN"
+    }
+  },
+  "evaluations": {
+    "eval-001": {
+      "id": "eval-001",
+      "name": "AIC 2025 KIS Task",
+      "type": "SYNCHRONOUS",
+      "status": "ACTIVE"
+    },
+    "eval-002": {
+      "id": "eval-002",
+      "name": "AIC 2025 QA Task",
+      "type": "SYNCHRONOUS",
+      "status": "ACTIVE"
+    },
+    "eval-003": {
+      "id": "eval-003",
+      "name": "AIC 2025 TRAKE Task",
+      "type": "SYNCHRONOUS",
+      "status": "ACTIVE"
+    }
+  },
+  "scoring": {
+    "Pmax": 100,
+    "Pbase": 50,
+    "Ppenalty": 10,
+    "Ttask_ms": 300000
+  },
+  "server": {
+    "title": "Mock DRES Server for AIC 2025",
+    "version": "1.0.0",
+    "description": "Test server for development and testing"
+  }
+}
