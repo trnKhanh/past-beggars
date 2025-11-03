@@ -172,7 +172,7 @@ export default function AnswerItem({
     return (
         <div
             className={classNames(
-                "w-full flex flex-row justify-between items-center py-2",
+                "w-full flex flex-row justify-between items-center py-2 px-2",
                 {
                       "bg-green-200": answer.correct,
                       "bg-red-200": !answer.correct,

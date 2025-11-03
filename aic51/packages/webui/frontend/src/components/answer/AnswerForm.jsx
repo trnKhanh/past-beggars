@@ -1,11 +1,9 @@
-import { useFetcher } from "react-router-dom";
 import { useSelected } from "../SelectedProvider.jsx";
 import {useContext, useState, useEffect} from "react";
 import {AuthContext} from "../AuthProvider.jsx";
 
 export default function AnswerForm({}) {
-    const { evaluationIds } = useContext(AuthContext);
-    const fetcher = useFetcher({ key: "answers" });
+    const { evaluationIds, submitAnswer } = useContext(AuthContext);
     const { selected, clearSelected } = useSelected();
 
     const [videoId, setVideoId] = useState("");
@@ -31,7 +29,7 @@ export default function AnswerForm({}) {
         return name;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const form = e.target.closest('form');
         if (!form) return;
@@ -39,41 +37,33 @@ export default function AnswerForm({}) {
         const formData = new FormData(form);
         const queryId = formData.get('query_id');
         const videoIdValue = formData.get('video_id');
+        const answerText = formData.get('answer') || '';
 
         if (!queryId || !videoIdValue) {
             alert("Please fill in Query ID and Video ID before adding.");
             return;
         }
 
+        // Prepare frame counters
+        let frameCounters;
         if (selected.length <= 1) {
-            fetcher.submit(form);
-            console.log("Added single frame");
-        }
-
-        else {
-            const frameCounters = selected.map(frameId => {
+            frameCounters = formData.get('frame_counter');
+        } else {
+            frameCounters = selected.map(frameId => {
                 const [, fc] = frameId.split('#');
                 return fc;
             }).join(', ');
-
-            const answer = formData.get('answer') || '';
-
-            fetcher.submit({
-                query_id: queryId,
-                video_id: videoIdValue,
-                frame_counter: frameCounters,
-                answer: answer
-            }, {
-                method: "POST",
-                action: "/answers"
-            });
-
-            console.log("Added temporal sequence:", {
-                query_id: queryId,
-                video_id: videoIdValue,
-                frame_counter: frameCounters
-            });
         }
+
+        const answerData = {
+            query_id: queryId,
+            video_id: videoIdValue,
+            frame_counter: frameCounters,
+            answer: answerText
+        };
+
+        console.log("Calling submitAnswer API with:", answerData);
+        await submitAnswer(answerData);
     };
 
     const handleClear = () => {
@@ -88,7 +78,7 @@ export default function AnswerForm({}) {
 
 
     return (
-        <fetcher.Form action="/answers" method="POST">
+        <form>
             <div className="p-1 w-full flex flex-row flex-wrap justify-center items-center bg-lime-100">
                 {/*<input*/}
                 {/*    required*/}
@@ -143,7 +133,7 @@ export default function AnswerForm({}) {
                         onClick={handleSubmit}
                         className="flex-1 rounded-xl border-2 border-black text-lg px-4 py-1 bg-sky-100 hover:bg-sky-200 active:bg-sky-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                        Submit {selected.length > 1 ? `Temporal (${selected.length})` : ''}
+                        Submit {selected.length > 1 ? `(${selected.length})` : ''}
                     </button>
                     <button
                         type="button"
@@ -154,6 +144,6 @@ export default function AnswerForm({}) {
                     </button>
                 </div>
             </div>
-        </fetcher.Form>
+        </form>
     );
 }

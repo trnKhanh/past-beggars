@@ -6,7 +6,7 @@ import {
   useNavigation,
 } from "react-router-dom";
 import classNames from "classnames";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 
 import { search } from "../services/search.js";
 import { FrameItem, FrameContainer } from "../components/Frame.jsx";
@@ -422,7 +422,7 @@ export default function Search() {
             {frames.map((frame, idx) => {
               let timeLines = frame.time_line || [];
               return (
-                <>
+                <Fragment key={`${frame.id}-${idx}`}>
                   {timeLines.map((keyframe) => {
                     return (
                       <FrameItem
@@ -444,7 +444,7 @@ export default function Search() {
                       />
                     );
                   })}
-                </>
+                </Fragment>
               );
             })}
           </FrameContainer>

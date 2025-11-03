@@ -86,6 +86,8 @@ class SubmitRequest(BaseModel):
 class SubmitResponse(BaseModel):
     submissionId: str
     status: str
+    submission: str  # "CORRECT" or "WRONG" - used by frontend
+    description: str  # Human-readable message
     score: float
     timestamp: str
 
@@ -268,12 +270,18 @@ async def submit_answer(
     if is_correct:
         # Score = max(0, Pbase + (Pmax - Pbase) × fT(t) - k × Ppenalty)
         score = max(0, Pbase + (Pmax - Pbase) * fT - k * Ppenalty)
+        submission_status = "CORRECT"
+        description = f"Submission accepted! Score: {score:.2f} points. Type: {submission_type}"
     else:
         score = 0
+        submission_status = "WRONG"
+        description = f"Incorrect submission. Type: {submission_type}. Please try again."
 
     return SubmitResponse(
         submissionId=submission_id,
-        status="CORRECT" if is_correct else "WRONG",
+        status="SUCCESS",  # HTTP-level status
+        submission=submission_status,  # "CORRECT" or "WRONG" - used by frontend
+        description=description,
         score=score,
         timestamp=submission['timestamp']
     )

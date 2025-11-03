@@ -170,18 +170,24 @@ function VideoPlayer({ frameInfo, onCancle }) {
           </div>
           <fetcher.Form
             id="answer-form"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const data = Object.fromEntries(formData);
+
+              // Prepare answer data for submission
+              const currentFrameCounter = parseInt(frameCounter);
               const newAnswer = {
                 ...data,
                 video_id: frameInfo.video_id,
                 frame_id: frameInfo.frame_id,
-                frame_counter: frameCounter,
+                frame_counter: [currentFrameCounter], // Array format for API
                 time: videoElementRef.current.currentTime,
               };
-              submitAnswer(newAnswer);
+
+              console.log("VideoPlayer submitting:", newAnswer);
+              await submitAnswer(newAnswer);
+              onCancle();
             }}
           >
             <div className="flex flex-row">
@@ -193,7 +199,7 @@ function VideoPlayer({ frameInfo, onCancle }) {
                 className="flex-1 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
               >
                 {evaluationIds.map((e) => (
-                  <option value={e.id}>{e.name}</option>
+                  <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
               </select>
               <input

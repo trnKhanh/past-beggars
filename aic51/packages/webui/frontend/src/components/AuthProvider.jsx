@@ -6,6 +6,7 @@ import {
   submitAnswerAPI,
 } from "../services/auth.js";
 import localforage from "localforage";
+import { useToast } from "./Toast.jsx";
 
 export const AuthContext = createContext({
   username: "",
@@ -18,6 +19,7 @@ export const AuthContext = createContext({
 // eslint-disable-next-line react/prop-types
 export default function AuthProvider({ children }) {
   const fetcher = useFetcher({ key: "answers" });
+  const { showToast, showConfirm } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [evaluationIds, setEvaluationIds] = useState([]);
@@ -54,7 +56,7 @@ export default function AuthProvider({ children }) {
       sessionId.current = res.data["sessionId"];
       await localforage.setItem("sessionId", sessionId.current);
 
-      alert("Login successfully");
+      showToast("Login successfully", "success");
       const evalRes = await getEvaluationIdAPI(sessionId.current);
       if (evalRes.status === 200) {
         const evalIds = [];
@@ -69,20 +71,34 @@ export default function AuthProvider({ children }) {
         setEvaluationIds(evalIds);
       }
     } else {
-      alert(res.data["description"]);
+      showToast(res.data["description"], "error");
     }
   };
 
   const submitAnswer = async (answer) => {
-    let willSubmit = confirm("Submit?");
+    console.log("submitAnswer called, sessionId:", sessionId.current);
+    const willSubmit = await showConfirm("Are you sure you want to submit this answer?");
     if (!willSubmit) {
       return;
     }
     const res = await submitAnswerAPI(sessionId.current, answer);
-    alert(res.data["description"]);
-    if (res.status === 200) {
+    console.log("API call completed, status:", res?.status);
+
+    const description = res?.data?.["description"] || "No response from server";
+    const isSuccess = res?.status === 200 && res?.data?.["submission"] === "CORRECT";
+    const isWrong = res?.status === 200 && res?.data?.["submission"] === "WRONG";
+
+    if (isSuccess) {
+      showToast(description, "success");
+    } else if (isWrong) {
+      showToast(description, "warning");
+    } else {
+      showToast(description, "error");
+    }
+
+    if (res?.status === 200) {
       fetcher.submit(
-        { correct: 0 + (res.data["submission"] !== "WRONG"), ...answer },
+        { correct: 0 + (res.data?.["submission"] === "CORRECT"), ...answer },
         { method: "POST", action: "/answers" },
       );
     }
