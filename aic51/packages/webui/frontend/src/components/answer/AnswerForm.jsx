@@ -1,12 +1,11 @@
 import { useSelected } from "../SelectedProvider.jsx";
-import {useContext, useState, useEffect} from "react";
+import {useContext, useState, useEffect, useCallback} from "react";
 import {AuthContext} from "../AuthProvider.jsx";
 
-export default function AnswerForm({}) {
+export default function AnswerForm() {
     const { evaluationIds, submitAnswer } = useContext(AuthContext);
-    const { selected, clearSelected } = useSelected();
+    const { selected, clearSelected, setSubmitCallback, formValues, updateFormValue } = useSelected();
 
-    const [videoId, setVideoId] = useState("");
     const [frameCounter, setFrameCounter] = useState("");
 
     useEffect(() => {
@@ -17,10 +16,16 @@ export default function AnswerForm({}) {
             }).join(", ");
             const vid = selected[0].split('#')[0];
 
-            setVideoId(vid);
+            updateFormValue('videoId', vid);
             setFrameCounter(selectedFramesText);
         }
-    }, [selected]);
+    }, [selected, updateFormValue]);
+
+    useEffect(() => {
+        if (evaluationIds.length > 0 && !formValues.queryId) {
+            updateFormValue('queryId', evaluationIds[0].id);
+        }
+    }, [evaluationIds, formValues.queryId, updateFormValue]);
 
     const getEvaluationLabel = (name) => {
         if (name.includes('KIS')) return 'KIS';
@@ -29,10 +34,16 @@ export default function AnswerForm({}) {
         return name;
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const form = e.target.closest('form');
-        if (!form) return;
+    const handleSubmit = useCallback(async (e) => {
+        if (e && e.preventDefault) {
+            e.preventDefault();
+        }
+
+        const form = e && e.target ? e.target.closest('form') : document.querySelector('#answer-form');
+        if (!form) {
+            console.error("Answer form not found");
+            return;
+        }
 
         const formData = new FormData(form);
         const queryId = formData.get('query_id');
@@ -64,21 +75,22 @@ export default function AnswerForm({}) {
 
         console.log("Calling submitAnswer API with:", answerData);
         await submitAnswer(answerData);
-    };
+    }, [selected, submitAnswer]);
 
     const handleClear = () => {
         clearSelected();
-        setVideoId("");
+        updateFormValue('videoId', '');
+        updateFormValue('answer', '');
         setFrameCounter("");
-        const answerInput = document.querySelector('input[name="answer"]');
-        if (answerInput) {
-            answerInput.value = "";
-        }
     };
 
+    useEffect(() => {
+        setSubmitCallback(() => handleSubmit);
+        return () => setSubmitCallback(null);
+    }, [setSubmitCallback, handleSubmit]);
 
     return (
-        <form>
+        <form id="answer-form">
             <div className="p-1 w-full flex flex-row flex-wrap justify-center items-center bg-lime-100">
                 {/*<input*/}
                 {/*    required*/}
@@ -92,6 +104,8 @@ export default function AnswerForm({}) {
                 type="text"
                 name="query_id"
                 autoComplete="off"
+                value={formValues.queryId}
+                onChange={(e) => updateFormValue('queryId', e.target.value)}
                 className="basis-1/4 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
               >
                 {evaluationIds.map((e) => (
@@ -106,9 +120,9 @@ export default function AnswerForm({}) {
                     name="video_id"
                     placeholder="Video ID"
                     autoComplete="off"
-                    value={videoId}
+                    value={formValues.videoId}
                     className="basis-5/12 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
-                    onChange={(e) => setVideoId(e.target.value)}
+                    onChange={(e) => updateFormValue('videoId', e.target.value)}
                 />
                 <input
                     required
@@ -125,6 +139,8 @@ export default function AnswerForm({}) {
                     name="answer"
                     placeholder="Answer"
                     autoComplete="off"
+                    value={formValues.answer}
+                    onChange={(e) => updateFormValue('answer', e.target.value)}
                     className="flex-[1_0_100%] py-1 px-2 min-w-0 focus:outline-none mt-2"
                 />
                 <div className="flex-[1_0_100%] flex flex-row gap-2 mt-2">

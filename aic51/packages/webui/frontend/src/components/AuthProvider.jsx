@@ -30,19 +30,21 @@ export default function AuthProvider({ children }) {
       const localSessionId = await localforage.getItem("sessionId");
       if (localSessionId) {
         sessionId.current = localSessionId;
-      }
-      const evalRes = await getEvaluationIdAPI(sessionId.current);
-      if (evalRes.status === 200) {
-        const evalIds = [];
-        for (const e of evalRes.data) {
-          evalIds.push({
-            id: e["id"],
-            name: e["name"],
-            type: e["type"],
-            status: e["status"]
-          });
+
+        // Only fetch evaluations if we have a valid session
+        const evalRes = await getEvaluationIdAPI(sessionId.current);
+        if (evalRes.status === 200) {
+          const evalIds = [];
+          for (const e of evalRes.data) {
+            evalIds.push({
+              id: e["id"],
+              name: e["name"],
+              type: e["type"],
+              status: e["status"]
+            });
+          }
+          setEvaluationIds(evalIds);
         }
-        setEvaluationIds(evalIds);
       }
     };
     fetchEval().then();

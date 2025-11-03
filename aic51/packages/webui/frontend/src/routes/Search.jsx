@@ -110,7 +110,7 @@ export default function Search() {
   const { query, params, offset, data, selected } = useLoaderData();
   console.log(params);
   const playVideo = usePlayVideo();
-  const { getSelectedForSubmit, clearSelected } = useSelected();
+  const { getSelectedForSubmit, clearSelected, triggerSubmit } = useSelected();
 
   const { q = "", id = null } = query;
   const { limit, nprobe } = params;
@@ -197,10 +197,10 @@ export default function Search() {
             console.log("Decrease speed");
           }
           return;
-        case 13: // Enter with Shift - Submit when viewing video
+        case 13: // Shift+Enter - Submit selected frame
           if (e.shiftKey && !isInInput) {
             e.preventDefault();
-            handleSubmitSelected();
+            triggerSubmit();
           }
           return;
         case 191: // Shift + / - Jump to answer when viewing video
@@ -218,7 +218,7 @@ export default function Search() {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [offset]);
+  }, [offset, triggerSubmit]);
 
   const goToFirstPage = () => {
     submit({ ...query, ...params, offset: 0 });
@@ -396,7 +396,7 @@ export default function Search() {
             draggable="false"
             alt="Go to previous page"
           />
-          <div className="w-10 text-center">{(offset && limit) ? Math.floor(offset / limit) + 1 : 0}</div>
+          <div className="w-10 text-center">{limit ? Math.floor(offset / limit) + 1 : 1}</div>
           <img
             onClick={() => {
               goToNextPage();

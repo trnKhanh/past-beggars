@@ -13,7 +13,7 @@ import AnswerItem from "./AnswerItem.jsx";
 import AnswerDetail from "./AnswerDetail.jsx";
 import { AuthContext } from "../AuthProvider.jsx";
 
-export default function AnswerSidebar({}) {
+export default function AnswerSidebar() {
     const { submitAnswer } = useContext(AuthContext);
     const fetcher = useFetcher({ key: "answers" });
     const [selected, setSelected] = useState(null);
@@ -21,12 +21,23 @@ export default function AnswerSidebar({}) {
     // const [downloadN, setDownloadN] = useState(5);
     const [downloadList, setDownloadList] = useState([]);
     const playVideo = usePlayVideo();
+    const [lastDataLength, setLastDataLength] = useState(0);
 
     useEffect(() => {
         if (fetcher.state === "idle" && !fetcher.data) {
             fetcher.load("/answers");
         }
-    }, [fetcher]);
+    }, []);
+
+    useEffect(() => {
+        const currentLength = fetcher.data?.length || 0;
+        if (currentLength !== lastDataLength) {
+            setLastDataLength(currentLength);
+            if (fetcher.state === "idle") {
+                fetcher.load("/answers");
+            }
+        }
+    }, [fetcher.data, lastDataLength, fetcher.state]);
 
     const handleOnSelect = (answer) => {
         setSelected(answer);
