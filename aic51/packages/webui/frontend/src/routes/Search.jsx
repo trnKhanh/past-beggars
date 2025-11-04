@@ -6,7 +6,7 @@ import {
   useNavigation,
 } from "react-router-dom";
 import classNames from "classnames";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 
 import { search } from "../services/search.js";
 import { FrameItem, FrameContainer } from "../components/Frame.jsx";
@@ -110,7 +110,7 @@ export default function Search() {
   const { query, params, offset, data, selected } = useLoaderData();
   console.log(params);
   const playVideo = usePlayVideo();
-  const { getSelectedForSubmit, clearSelected } = useSelected();
+  const { getSelectedForSubmit, clearSelected, triggerSubmit } = useSelected();
 
   const { q = "", id = null } = query;
   const { limit, nprobe } = params;
@@ -197,10 +197,10 @@ export default function Search() {
             console.log("Decrease speed");
           }
           return;
-        case 13: // Enter with Shift - Submit when viewing video
+        case 13: // Shift+Enter - Submit selected frame
           if (e.shiftKey && !isInInput) {
             e.preventDefault();
-            handleSubmitSelected();
+            triggerSubmit();
           }
           return;
         case 191: // Shift + / - Jump to answer when viewing video
@@ -218,7 +218,7 @@ export default function Search() {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [offset]);
+  }, [offset, triggerSubmit]);
 
   const goToFirstPage = () => {
     submit({ ...query, ...params, offset: 0 });
@@ -301,11 +301,7 @@ export default function Search() {
       alert("Please select a frame first");
     }
   };
-
-  const handleClearSelected = () => {
-    clearSelected();
-  };
-  const handleOnSearch = (e) => {
+    const handleOnSearch = (e) => {
     e.preventDefault();
     
     const url = new URL(window.location);
@@ -324,43 +320,42 @@ export default function Search() {
   return (
     <div id="search-area" className="flex flex-col w-full">
       <Form id="search-form" onSubmit={handleOnSearch}>
-        <div className="flex flex-col p-1 px-2 space-y-1 bg-gray-100">
-          <div className="flex flex-row space-x-2">
-            <img
-              className={classNames("h-6 w-6 self-center", {
-                "visible animate-spin": navigation.state === "loading",
-                invisible: navigation.state !== "loading",
-              })}
-              src={SpinIcon}
-            />
-            <textarea
-              form="search-form"
-              autoComplete="off"
-              rows="2"
-              className="flex-grow text-sm p-1 border rounded border-gray-400 bg-gray-200 text-gray-600 focus:border-black focus:bg-white focus:text-black focus:outline-none resize-none"
-              name="q"
-              id="search-bar"
-              placeholder="Search"
-              value={currentQuery}
-              onChange={(e) => setCurrentQuery(e.target.value)}
-              onKeyDown={(e) => {
-                // Bad practice
-                if (e.keyCode === 13 && e.shiftKey === false) {
-                  e.preventDefault();
-                  handleOnSearch(e);
-                }
-              }}
-            />
-            <button
-              className="self-center text-sm py-1 px-2 border rounded bg-gray-600 text-white hover:bg-gray-500 active:bg-gray-400"
-              type="button"
-              onClick={(e) => {
+        <div className="p-1 w-full flex flex-row flex-wrap justify-center items-center bg-lime-100">
+          <img
+            className={classNames("h-6 w-6 mr-2", {
+              "visible animate-spin": navigation.state === "loading",
+              invisible: navigation.state !== "loading",
+            })}
+            src={SpinIcon}
+            alt="Loading"
+          />
+          <textarea
+            form="search-form"
+            autoComplete="off"
+            rows="2"
+            className="flex-grow py-1 px-2 border-2 border-black min-w-0 focus:outline-none resize-none"
+            name="q"
+            id="search-bar"
+            placeholder="Search"
+            value={currentQuery}
+            onChange={(e) => setCurrentQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Bad practice
+              if (e.keyCode === 13 && e.shiftKey === false) {
+                e.preventDefault();
                 handleOnSearch(e);
-              }}
-            >
-              Search
-            </button>
-          </div>
+              }
+            }}
+          />
+          <button
+            className="ml-2 rounded-xl border-2 border-black text-lg px-4 py-1 bg-sky-100 hover:bg-sky-200 active:bg-sky-300"
+            type="button"
+            onClick={(e) => {
+              handleOnSearch(e);
+            }}
+          >
+            Search
+          </button>
         </div>
       </Form>
 
@@ -386,6 +381,7 @@ export default function Search() {
             width="50em"
             src={HomeButton}
             draggable="false"
+            alt="Go to first page"
           />
 
           <img
@@ -396,8 +392,9 @@ export default function Search() {
             width="50em"
             src={PreviousButton}
             draggable="false"
+            alt="Go to previous page"
           />
-          <div className="w-10 text-center">{Math.floor(offset / limit) + 1}</div>
+          <div className="w-10 text-center">{limit ? Math.floor(offset / limit) + 1 : 1}</div>
           <img
             onClick={() => {
               goToNextPage();
@@ -406,6 +403,7 @@ export default function Search() {
             width="50em"
             src={NextButton}
             draggable="false"
+            alt="Go to next page"
           />
       </div>
       {empty ? (
@@ -422,7 +420,7 @@ export default function Search() {
             {frames.map((frame, idx) => {
               let timeLines = frame.time_line || [];
               return (
-                <>
+                <Fragment key={`${frame.id}-${idx}`}>
                   {timeLines.map((keyframe) => {
                     return (
                       <FrameItem
@@ -444,7 +442,7 @@ export default function Search() {
                       />
                     );
                   })}
-                </>
+                </Fragment>
               );
             })}
           </FrameContainer>

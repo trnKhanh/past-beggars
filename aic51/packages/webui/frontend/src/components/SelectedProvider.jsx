@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 
 export const SelectedContext = createContext({
   selected: [],
@@ -7,44 +7,66 @@ export const SelectedContext = createContext({
   clearSelected: () => {},
   getFirstSelected: () => null,
   getSelectedForSubmit: () => null,
+  setSubmitCallback: () => {},
+  triggerSubmit: () => {},
+  formValues: { queryId: '', videoId: '', answer: '' },
+  updateFormValue: () => {},
 });
 
 export default function SelectedProvider({ children }) {
   const [selected, setSelected] = useState([]);
+  const [submitCallback, setSubmitCallback] = useState(null);
+  const [formValues, setFormValues] = useState({ queryId: '', videoId: '', answer: '' });
 
-  const addSelected = (frameId) => {
+  const addSelected = useCallback((frameId) => {
     setSelected(prev => {
       if (!prev.includes(frameId)) {
         if (prev.length > 0) {
           const existingVideoId = prev[0].split('#')[0];
           const newVideoId = frameId.split('#')[0];
-          
+
           if (existingVideoId !== newVideoId) {
             return prev;
           }
         }
-        
+
         return [...prev, frameId];
       }
       return prev;
     });
-  };
+  }, []);
 
-  const removeSelected = (frameId) => {
+  const removeSelected = useCallback((frameId) => {
     setSelected(prev => prev.filter(id => id !== frameId));
-  };
+  }, []);
 
-  const clearSelected = () => {
+  const clearSelected = useCallback(() => {
     setSelected([]);
-  };
+  }, []);
 
-  const getFirstSelected = () => {
+  const getFirstSelected = useCallback(() => {
     return selected.length > 0 ? selected[0] : null;
-  };
+  }, [selected]);
 
-  const getSelectedForSubmit = () => {
+  const getSelectedForSubmit = useCallback(() => {
     return selected.length > 0 ? selected[0] : null;
-  };
+  }, [selected]);
+
+  const triggerSubmit = useCallback(() => {
+    if (submitCallback) {
+      submitCallback();
+    }
+  }, [submitCallback]);
+
+  const updateFormValue = useCallback((field, value) => {
+    setFormValues(prev => {
+      // Prevent unnecessary updates if value hasn't changed
+      if (prev[field] === value) {
+        return prev;
+      }
+      return { ...prev, [field]: value };
+    });
+  }, []);
 
   return (
     <SelectedContext.Provider
@@ -55,6 +77,10 @@ export default function SelectedProvider({ children }) {
         clearSelected,
         getFirstSelected,
         getSelectedForSubmit,
+        setSubmitCallback,
+        triggerSubmit,
+        formValues,
+        updateFormValue,
       }}
     >
       {children}

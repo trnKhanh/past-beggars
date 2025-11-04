@@ -92,7 +92,12 @@ searcher:
     enable: true
 
 frontend:
-  dev_port: 5173
+  dev:
+    port: 5173
+    submit_domain: "http://127.0.0.1:8888"
+  prod:
+    port: 6900
+    submit_domain: "https://eventretrieval.oj.io.vn/"
 
 backends:
   core:
@@ -117,6 +122,3 @@ backends:
   file:
     port: 4200
     workers: 1
-
-
-

@@ -34,10 +34,17 @@ export function usePlayVideo() {
 }
 function VideoPlayer({ frameInfo, onCancle }) {
   const { evaluationIds, submitAnswer } = useContext(AuthContext);
-  const { selected } = useSelected();
+  const { formValues, updateFormValue } = useSelected();
   const fetcher = useFetcher({ key: "answers" });
   const videoElementRef = useRef(null);
   const [frameCounter, setFrameCounter] = useState(0);
+
+  const getEvaluationLabel = (name) => {
+    if (name.includes('KIS')) return 'KIS';
+    if (name.includes('QA')) return 'QA';
+    if (name.includes('TRAKE')) return 'TRAKE';
+    return name;
+  };
 
   useEffect(() => {
     const fps = frameInfo.fps;
@@ -45,6 +52,9 @@ function VideoPlayer({ frameInfo, onCancle }) {
     videoElement.currentTime =
       frameInfo.time || parseInt(frameInfo.frame_id) / fps - 0.5;
     videoElement.focus();
+
+    // Sync video_id to shared form state
+    updateFormValue('videoId', frameInfo.video_id);
 
     const handleKeyDown = (e) => {
       const isInInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
@@ -56,15 +66,15 @@ function VideoPlayer({ frameInfo, onCancle }) {
         case 13: // Enter - focus answer input or shift+enter to submit
           if (e.shiftKey) {
             e.preventDefault();
-            document.querySelector("#answer-form input[type=submit]").click();
+            document.querySelector("#video-player-form input[type=submit]").click();
           } else if (!isInInput) {
-            document.querySelector("#answer-form input[name=answer]").focus();
+            document.querySelector("#video-player-form input[name=answer]").focus();
           }
           return;
         case 191: // Shift + / - Jump to answer
           if (e.shiftKey) {
             e.preventDefault();
-            document.querySelector("#answer-form input[name=answer]").focus();
+            document.querySelector("#video-player-form input[name=answer]").focus();
           }
           return;
         case 75: // K - Play/pause
@@ -169,19 +179,25 @@ function VideoPlayer({ frameInfo, onCancle }) {
             </div>
           </div>
           <fetcher.Form
-            id="answer-form"
-            onSubmit={(e) => {
+            id="video-player-form"
+            onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const data = Object.fromEntries(formData);
+
+              // Prepare answer data for submission
+              const currentFrameCounter = parseInt(frameCounter);
               const newAnswer = {
                 ...data,
                 video_id: frameInfo.video_id,
                 frame_id: frameInfo.frame_id,
-                frame_counter: frameCounter,
+                frame_counter: [currentFrameCounter], // Array format for API
                 time: videoElementRef.current.currentTime,
               };
-              submitAnswer(newAnswer);
+
+              console.log("VideoPlayer submitting:", newAnswer);
+              await submitAnswer(newAnswer);
+              onCancle();
             }}
           >
             <div className="flex flex-row">
@@ -190,10 +206,12 @@ function VideoPlayer({ frameInfo, onCancle }) {
                 type="text"
                 name="query_id"
                 placeholder="evaluationIds"
+                value={formValues.queryId}
+                onChange={(e) => updateFormValue('queryId', e.target.value)}
                 className="flex-1 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
               >
                 {evaluationIds.map((e) => (
-                  <option value={e.id}>{e.name}</option>
+                  <option key={e.id} value={e.id}>{getEvaluationLabel(e.name)}</option>
                 ))}
               </select>
               <input
@@ -201,6 +219,8 @@ function VideoPlayer({ frameInfo, onCancle }) {
                 name="answer"
                 placeholder="Answer"
                 autoComplete="off"
+                value={formValues.answer}
+                onChange={(e) => updateFormValue('answer', e.target.value)}
                 className="flex-[2_2_0%] py-1 px-2 min-w-0 focus:outline-none"
               />
               <input
