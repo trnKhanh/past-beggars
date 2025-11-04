@@ -108,7 +108,7 @@ export default function SearchParams() {
         )}
 
         <input
-          className="w-full text-sm px-2 py-1 border-2 border-gray-500 rounded-lg bg-gray-900 text-white hover:bg-gray-800 active:bg-gray-700 cursor-pointer"
+          className="w-full rounded-xl border-2 border-black text-lg px-4 py-1 bg-sky-100 hover:bg-sky-200 active:bg-sky-300 cursor-pointer"
           type="submit"
           value="Apply"
         />

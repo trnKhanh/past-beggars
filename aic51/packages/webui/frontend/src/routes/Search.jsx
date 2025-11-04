@@ -320,44 +320,42 @@ export default function Search() {
   return (
     <div id="search-area" className="flex flex-col w-full">
       <Form id="search-form" onSubmit={handleOnSearch}>
-        <div className="flex flex-col p-1 px-2 space-y-1 bg-gray-100">
-          <div className="flex flex-row space-x-2">
-            <img
-              className={classNames("h-6 w-6 self-center", {
-                "visible animate-spin": navigation.state === "loading",
-                invisible: navigation.state !== "loading",
-              })}
-              src={SpinIcon}
-              alt="Loading"
-            />
-            <textarea
-              form="search-form"
-              autoComplete="off"
-              rows="2"
-              className="flex-grow text-sm p-1 border rounded border-gray-400 bg-gray-200 text-gray-600 focus:border-black focus:bg-white focus:text-black focus:outline-none resize-none"
-              name="q"
-              id="search-bar"
-              placeholder="Search"
-              value={currentQuery}
-              onChange={(e) => setCurrentQuery(e.target.value)}
-              onKeyDown={(e) => {
-                // Bad practice
-                if (e.keyCode === 13 && e.shiftKey === false) {
-                  e.preventDefault();
-                  handleOnSearch(e);
-                }
-              }}
-            />
-            <button
-              className="self-center text-sm py-1 px-2 border rounded bg-gray-600 text-white hover:bg-gray-500 active:bg-gray-400"
-              type="button"
-              onClick={(e) => {
+        <div className="p-1 w-full flex flex-row flex-wrap justify-center items-center bg-lime-100">
+          <img
+            className={classNames("h-6 w-6 mr-2", {
+              "visible animate-spin": navigation.state === "loading",
+              invisible: navigation.state !== "loading",
+            })}
+            src={SpinIcon}
+            alt="Loading"
+          />
+          <textarea
+            form="search-form"
+            autoComplete="off"
+            rows="2"
+            className="flex-grow py-1 px-2 border-2 border-black min-w-0 focus:outline-none resize-none"
+            name="q"
+            id="search-bar"
+            placeholder="Search"
+            value={currentQuery}
+            onChange={(e) => setCurrentQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Bad practice
+              if (e.keyCode === 13 && e.shiftKey === false) {
+                e.preventDefault();
                 handleOnSearch(e);
-              }}
-            >
-              Search
-            </button>
-          </div>
+              }
+            }}
+          />
+          <button
+            className="ml-2 rounded-xl border-2 border-black text-lg px-4 py-1 bg-sky-100 hover:bg-sky-200 active:bg-sky-300"
+            type="button"
+            onClick={(e) => {
+              handleOnSearch(e);
+            }}
+          >
+            Search
+          </button>
         </div>
       </Form>
 

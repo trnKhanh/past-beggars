@@ -8,9 +8,9 @@ import {
   RouterProvider,
 } from "react-router-dom";
 
-import Root, { loader as RootLoader } from "./routes/root.jsx";
-import Search, { loader as SearchLoader } from "./routes/search.jsx";
-import { loader as SearchSimilarLoader } from "./routes/searchsimilar.jsx";
+import Root, { loader as RootLoader } from "./routes/Root.jsx";
+import Search, { loader as SearchLoader } from "./routes/Search.jsx";
+import { loader as SearchSimilarLoader } from "./routes/SearchSimilar.jsx";
 import {
   action as AnswerAction,
   loader as AnswerLoader,
