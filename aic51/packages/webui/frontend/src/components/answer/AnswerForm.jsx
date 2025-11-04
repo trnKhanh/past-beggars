@@ -27,13 +27,6 @@ export default function AnswerForm() {
         }
     }, [evaluationIds, formValues.queryId, updateFormValue]);
 
-    const getEvaluationLabel = (name) => {
-        if (name.includes('KIS')) return 'KIS';
-        if (name.includes('QA')) return 'QA';
-        if (name.includes('TRAKE')) return 'TRAKE';
-        return name;
-    };
-
     const handleSubmit = useCallback(async (e) => {
         if (e && e.preventDefault) {
             e.preventDefault();
@@ -55,7 +48,6 @@ export default function AnswerForm() {
             return;
         }
 
-        // Prepare frame counters
         let frameCounters;
         if (selected.length <= 1) {
             frameCounters = formData.get('frame_counter');
@@ -66,9 +58,12 @@ export default function AnswerForm() {
             }).join(', ');
         }
 
+        const frameId = selected.length > 0 ? selected[0].split('#')[1] : null;
+
         const answerData = {
             query_id: queryId,
             video_id: videoIdValue,
+            frame_id: frameId,
             frame_counter: frameCounters,
             answer: answerText
         };
@@ -110,7 +105,7 @@ export default function AnswerForm() {
               >
                 {evaluationIds.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {getEvaluationLabel(e.name)}
+                    {e.name}
                   </option>
                 ))}
               </select>

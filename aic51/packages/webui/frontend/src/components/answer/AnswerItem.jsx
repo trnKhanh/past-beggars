@@ -29,13 +29,6 @@ export default function AnswerItem({
     const fetcher = useFetcher({ key: "answers" });
     const playVideo = usePlayVideo();
 
-    const getEvaluationLabel = (name) => {
-        if (name.includes('KIS')) return 'KIS';
-        if (name.includes('QA')) return 'QA';
-        if (name.includes('TRAKE')) return 'TRAKE';
-        return name;
-    };
-
     const handleOnMouseLeave = async () => {
         if (selected) {
             onSelect(null);
@@ -103,7 +96,7 @@ export default function AnswerItem({
                     >
                       {evaluationIds.map((e) => (
                         <option key={e.id} value={e.id}>
-                          {getEvaluationLabel(e.name)}
+                          {e.name}
                         </option>
                       ))}
                     </select>
@@ -172,7 +165,7 @@ export default function AnswerItem({
     return (
         <div
             className={classNames(
-                "w-full flex flex-row justify-between items-center py-2 px-2",
+                "w-full flex flex-row justify-center items-center py-2 px-2",
                 {
                       "bg-green-200": answer.correct,
                       "bg-red-200": !answer.correct,
@@ -191,17 +184,17 @@ export default function AnswerItem({
             }}
         >
             <div id="answer-description">
-                <div className="">{answer.query_id}</div>
+                <div className="text-sm basis-3/5">{answer.query_id}</div>
             </div>
             <div
                 id="answer-option"
-                className="flex flex-row"
+                className="flex flex-row basis-2/5"
                 onClick={(e) => e.stopPropagation()}
             >
                 <img
                     className="hover:bg-blue-100 active:bg-blue-50 select-none"
                     src={EditButton}
-                    width="30em"
+                    width="25em"
                     draggable="false"
                     onClick={() => {
                         setIsEditing(true);
@@ -211,7 +204,7 @@ export default function AnswerItem({
                 <img
                   className="hover:bg-blue-100 active:bg-blue-50 select-none"
                   src={SubmitButton}
-                  width="30em"
+                  width="25em"
                   draggable="false"
                   onClick={() => {
                     onSubmitAnswer(answer);
@@ -230,7 +223,7 @@ export default function AnswerItem({
                 <img
                     className="hover:bg-blue-100 active:bg-blue-50 select-none"
                     src={PlayButton}
-                    width="30em"
+                    width="25em"
                     draggable="false"
                     onClick={handleOnPlay}
                     alt={"Play Button"}
@@ -238,7 +231,7 @@ export default function AnswerItem({
                 <img
                     className="hover:bg-blue-100 active:bg-blue-50 select-none"
                     src={FindButton}
-                    width="30em"
+                    width="25em"
                     draggable="false"
                     onClick={handleOnFind}
                     alt={"Find Button"}
@@ -246,7 +239,7 @@ export default function AnswerItem({
                 <img
                     className="hover:bg-blue-100 active:bg-blue-50 select-none"
                     src={DeleteButton}
-                    width="30em"
+                    width="25em"
                     draggable="false"
                     onClick={handleOnDelete}
                     alt={"Delete Button"}
