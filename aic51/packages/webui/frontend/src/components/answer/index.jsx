@@ -14,7 +14,7 @@ import AnswerDetail from "./AnswerDetail.jsx";
 import { AuthContext } from "../AuthProvider.jsx";
 
 export default function AnswerSidebar() {
-    const { submitAnswer } = useContext(AuthContext);
+    const { submitAnswer, shouldReload } = useContext(AuthContext);
     const fetcher = useFetcher({ key: "answers" });
     const [selected, setSelected] = useState(null);
     // const [downloadStep, setDownloadStep] = useState(50);
@@ -38,6 +38,14 @@ export default function AnswerSidebar() {
             }
         }
     }, [fetcher.data, lastDataLength, fetcher.state]);
+
+    useEffect(() => {
+        if (shouldReload > 0) {
+            setTimeout(() => {
+                fetcher.load("/answers");
+            }, 200);
+        }
+    }, [shouldReload]);
 
     const handleOnSelect = (answer) => {
         setSelected(answer);

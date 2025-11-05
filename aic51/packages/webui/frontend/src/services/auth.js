@@ -32,11 +32,10 @@ export async function getEvaluationIdAPI(sessionId) {
 
 export async function submitAnswerAPI(sessionId, answer) {
   try {
-    console.log("[submitAnswerAPI] Starting submission with:", { sessionId, answer });
     let answerType = "kis"; // Default to KIS
     let answerData = {};
 
-    // Handle frame_counter - it can be an array or a string
+    // Parse frame_counter
     let frameCounters = [];
     if (Array.isArray(answer.frame_counter)) {
         frameCounters = answer.frame_counter.map(f => String(f).trim());
@@ -46,34 +45,19 @@ export async function submitAnswerAPI(sessionId, answer) {
         frameCounters = [String(answer.frame_counter).trim()];
     }
 
-    console.log("[submitAnswerAPI] Frame counters:", frameCounters);
     if (frameCounters.length === 0) {
-        console.error("[submitAnswerAPI] Missing frameCounters");
         return { status: 400, data: { description: "Error: No frame counters provided" } };
     }
 
-    const firstFrameId = answer.frame_id || frameCounters[0];
-    console.log("[submitAnswerAPI] First frame ID:", firstFrameId, "(from:", answer.frame_id ? "frame_id" : "frame_counter[0]", ")");
-
-    let frameInfo;
+    // Get fps from frame_id
+    let fps;
     try {
-        console.log("[submitAnswerAPI] Fetching frame info for video:", answer.video_id, "frame:", firstFrameId);
-        frameInfo = await getFrameInfo(answer.video_id, firstFrameId);
-        console.log("[submitAnswerAPI] Frame info retrieved:", frameInfo);
+        const frameInfo = await getFrameInfo(answer.video_id, answer.frame_id || frameCounters[0]);
+        fps = frameInfo?.fps;
+        if (!fps) throw new Error("FPS missing from frame info");
     } catch (err) {
-        console.error("[submitAnswerAPI] Error fetching frame info:", err);
-        const errorMsg = err.response?.data?.message || err.message || "Unknown error";
-        return { status: 500, data: { description: `Failed to get frame info: ${errorMsg}` } };
+        return { status: 500, data: { description: `Failed to get fps: ${err.message}` } };
     }
-
-    if (!frameInfo || !frameInfo.fps) {
-        console.error("[submitAnswerAPI] FPS data is null or undefined. Frame info:", frameInfo);
-        console.error("[submitAnswerAPI] Video ID:", answer.video_id, "Frame ID:", firstFrameId);
-        return { status: 500, data: { description: "FPS data is missing from frame info. Please check backend API." } };
-    }
-
-    const fps = frameInfo.fps;
-    console.log("[submitAnswerAPI] FPS:", fps);
 
     const listTimeMs = frameCounters.map(fc => fc * 1000 / fps);
     const isTemporal = frameCounters.length > 1;
@@ -130,24 +114,15 @@ export async function submitAnswerAPI(sessionId, answer) {
       };
     }
 
-    const evaluationId = answer.query_id;
     const dresApiUrl = getDresApiUrl();
-    console.log("[submitAnswerAPI] About to POST to API:", {
-      url: `${dresApiUrl}/api/v2/submit/${evaluationId}`,
-      answerData,
-      sessionId,
-      answerType
-    });
-    const res = await axios.post(
-      `${dresApiUrl}/api/v2/submit/${evaluationId}`,
+    return await axios.post(
+      `${dresApiUrl}/api/v2/submit/${answer.query_id}`,
       answerData,
       {
         params: { session: sessionId },
         headers: { "Content-Type": "application/json" },
       },
     );
-    console.log("[submitAnswerAPI] API response:", res);
-    return res;
   } catch (err) {
     console.error("[submitAnswerAPI] Error:", err);
     return err.response || { status: 500, data: { description: err.message || "Unknown error" } };

@@ -14,6 +14,7 @@ export const AuthContext = createContext({
   updateAuth: null,
   evaluationIds: [],
   submitAnswer: null,
+  reloadAnswers: null,
 });
 
 // eslint-disable-next-line react/prop-types
@@ -23,6 +24,7 @@ export default function AuthProvider({ children }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [evaluationIds, setEvaluationIds] = useState([]);
+  const [shouldReload, setShouldReload] = useState(0);
 
   const sessionId = useRef(undefined);
   useEffect(() => {
@@ -89,13 +91,16 @@ export default function AuthProvider({ children }) {
     const description = res?.data?.["description"] || "No response from server";
     const isSuccess = res?.status === 200 && res?.data?.["submission"] === "CORRECT";
     const isWrong = res?.status === 200 && res?.data?.["submission"] === "WRONG";
+    const isFalseStatus = res?.data?.["status"] === false;
 
     if (isSuccess) {
-      showToast(description, "success");
+      showToast(description, "success");  // Green
     } else if (isWrong) {
-      showToast(description, "warning");
+      showToast(description, "error");    // Red
+    } else if (isFalseStatus) {
+      showToast(description, "warning");  // Yellow
     } else {
-      showToast(description, "error");
+      showToast(description, "error");    // Red
     }
 
     if (res?.status === 200) {
@@ -103,12 +108,14 @@ export default function AuthProvider({ children }) {
         { correct: 0 + (res.data?.["submission"] === "CORRECT"), ...answer },
         { method: "POST", action: "/answers" },
       );
+
+      setShouldReload(prev => prev + 1);
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ username, password, updateAuth, evaluationIds, submitAnswer }}
+      value={{ username, password, updateAuth, evaluationIds, submitAnswer, shouldReload }}
     >
       {children}
     </AuthContext.Provider>

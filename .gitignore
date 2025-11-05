@@ -368,3 +368,4 @@ pyrightconfig.json
 wget-log
 workspace
 .DS_Store
+docs

@@ -39,13 +39,6 @@ function VideoPlayer({ frameInfo, onCancle }) {
   const videoElementRef = useRef(null);
   const [frameCounter, setFrameCounter] = useState(0);
 
-  const getEvaluationLabel = (name) => {
-    if (name.includes('KIS')) return 'KIS';
-    if (name.includes('QA')) return 'QA';
-    if (name.includes('TRAKE')) return 'TRAKE';
-    return name;
-  };
-
   useEffect(() => {
     const fps = frameInfo.fps;
     const videoElement = videoElementRef.current;
@@ -211,7 +204,7 @@ function VideoPlayer({ frameInfo, onCancle }) {
                 className="flex-1 py-1 px-2 border-black border-r-2 min-w-0 focus:outline-none"
               >
                 {evaluationIds.map((e) => (
-                  <option key={e.id} value={e.id}>{getEvaluationLabel(e.name)}</option>
+                  <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
               </select>
               <input
