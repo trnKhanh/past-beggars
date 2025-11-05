@@ -165,13 +165,13 @@ export default function AnswerItem({
     return (
         <div
             className={classNames(
-                "w-full flex flex-row justify-center items-center py-2 px-2",
+                "w-full flex flex-row justify-between items-center py-2 px-2",
                 {
                       "bg-green-200": answer.correct,
-                      "bg-red-200": !answer.correct,
+                      "bg-yellow-200": !answer.correct,
                       "bg-green-300 font-bold": selected && answer.correct,
-                      "bg-red-300 font-bold": selected && !answer.correct,
-                      "border-2 border-blue-500": inList && !selected,
+                      "bg-yellow-300 font-bold": selected && !answer.correct,
+                      "border-3 border-blue-500": inList && !selected,
                     // "bg-violet-200 hover:bg-violet-300": inList,
                     // "bg-blue-200 font-bold": !inList && selected,
                     // "hover:bg-blue-100": !inList &&
@@ -184,11 +184,11 @@ export default function AnswerItem({
             }}
         >
             <div id="answer-description">
-                <div className="text-sm basis-3/5">{answer.query_id}</div>
+                <div className="text-sm">{answer.submitted}</div>
             </div>
             <div
                 id="answer-option"
-                className="flex flex-row basis-2/5"
+                className="flex flex-row"
                 onClick={(e) => e.stopPropagation()}
             >
                 <img

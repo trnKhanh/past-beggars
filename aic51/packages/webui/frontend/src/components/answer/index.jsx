@@ -126,9 +126,9 @@ export default function AnswerSidebar() {
                 {/*        />*/}
                 {/*    </div>*/}
                 {/*</Form>*/}
-                <div className="mt-2">
+                <div className="mt-2 max-h-96 overflow-y-auto">
                     {fetcher.data &&
-                    fetcher.data.map((answer) => (
+                    [...fetcher.data].reverse().map((answer) => (
                         <AnswerItem
                             key={answer.id}
                             answer={answer}
