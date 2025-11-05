@@ -15,6 +15,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 import aic51.packages
 import aic51.packages.constant as constant
 import aic51.packages.webui
+import aic51.resources
 from aic51.packages.config import GlobalConfig
 from aic51.packages.index import MilvusDatabase
 from aic51.packages.logger import logger
@@ -47,18 +48,29 @@ class ServeCommand(BaseCommand):
             help="Do not run backend",
         )
 
+        parser.add_argument(
+            "--no-proxy",
+            dest="use_proxy",
+            action="store_false",
+            help="Do not start nginx reverse proxy",
+        )
+
         parser.set_defaults(func=self)
 
     def __call__(
         self,
         do_frontend: bool,
         do_backend: bool,
+        use_proxy: bool,
         dev_mode: bool,
         verbose: bool,
         *args,
         **kwargs,
     ):
         MilvusDatabase.start_server()
+
+        if use_proxy:
+            self._start_nginx()
 
         if do_frontend:
             self._frontend_dir = Path(inspect.getfile(aic51.packages.webui)).parent / "frontend"
@@ -78,6 +90,9 @@ class ServeCommand(BaseCommand):
 
         if do_backend:
             self._stop_backend()
+
+        if use_proxy:
+            self._stop_nginx()
 
     def _start_frontend(self, dev_mode: bool):
         self._install_frontend()
@@ -209,3 +224,46 @@ class ServeCommand(BaseCommand):
         web_dir.mkdir(parents=True, exist_ok=True)
 
         built_dir.rename(web_dir / "dist")
+
+    def _start_nginx(self) -> None:
+        """Start nginx Docker container"""
+        resources_dir = Path(inspect.getfile(aic51.resources)).parent
+        docker_compose_path = resources_dir / "docker-compose.yml"
+
+        if not docker_compose_path.exists():
+            logger.warning(f"docker-compose.yml not found at {docker_compose_path}")
+            return
+
+        logger.info("Starting nginx reverse proxy")
+        try:
+            subprocess.run(
+                ["docker", "info"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=True
+            )
+            subprocess.run(
+                ["docker-compose", "up", "-d"],
+                cwd=str(resources_dir),
+                check=True
+            )
+            logger.info("Nginx proxy started. Access app at http://localhost")
+        except subprocess.CalledProcessError:
+            logger.error("Failed to start nginx. Make sure Docker is running.")
+        except FileNotFoundError:
+            logger.error("docker-compose command not found. Please install Docker Compose.")
+
+    def _stop_nginx(self) -> None:
+        """Stop nginx Docker container"""
+        resources_dir = Path(inspect.getfile(aic51.resources)).parent
+
+        logger.info("Stopping nginx reverse proxy")
+        try:
+            subprocess.run(
+                ["docker-compose", "down"],
+                cwd=str(resources_dir),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except Exception as e:
+            logger.warning(f"Failed to stop nginx: {e}")
