@@ -26,7 +26,9 @@ dependencies = [
   "open_clip_torch",
   "pytesseract",
   "apscheduler",
-  "pydantic~=2.12.3"
+  "pydantic~=2.12.3",
+  "sse-starlette",
+  "httpx"
 ]
 
 [project.scripts]

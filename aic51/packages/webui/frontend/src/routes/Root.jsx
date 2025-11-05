@@ -4,6 +4,7 @@ import VideoProvider from "../components/VideoPlayer.jsx";
 import SelectedProvider from "../components/SelectedProvider.jsx";
 import AuthProvider from "../components/AuthProvider.jsx";
 import { ToastProvider } from "../components/Toast.jsx";
+import FrameShareProvider from "../components/FrameShareProvider.jsx";
 
 import AnswerSidebar from "../components/answer/index.jsx";
 import SearchParams from "../components/SearchParams.jsx";
@@ -25,15 +26,17 @@ export default function Root() {
       <AuthProvider>
         <SelectedProvider>
           <VideoProvider>
-            <div className="flex flex-row">
-              <div className="flex flex-col">
-                <SearchParams />
-                <div className="w-96 z-10">
-                  <AnswerSidebar />
+            <FrameShareProvider>
+              <div className="flex flex-row">
+                <div className="flex flex-col">
+                  <SearchParams />
+                  <div className="w-96 z-10">
+                    <AnswerSidebar />
+                  </div>
                 </div>
+                <Outlet context={{ targetFeatureOptions }}/>
               </div>
-              <Outlet context={{ targetFeatureOptions }}/>
-            </div>
+            </FrameShareProvider>
           </VideoProvider>
         </SelectedProvider>
       </AuthProvider>

@@ -13,6 +13,7 @@ import { FrameItem, FrameContainer } from "../components/Frame.jsx";
 import { usePlayVideo } from "../components/VideoPlayer.jsx";
 import { AdvanceQueryContainer } from "../components/AdvanceQuery.jsx";
 import { useSelected } from "../components/SelectedProvider.jsx";
+import { useFrameShare } from "../components/FrameShareProvider.jsx";
 import { getTimelineColor } from "../utils/timelineColors.js";
 import PreviousButton from "../assets/previous-btn.svg";
 import NextButton from "../assets/next-btn.svg";
@@ -111,6 +112,7 @@ export default function Search() {
   console.log(params);
   const playVideo = usePlayVideo();
   const { getSelectedForSubmit, clearSelected, triggerSubmit } = useSelected();
+  const { shareFrame } = useFrameShare();
 
   const { q = "", id = null } = query;
   const { limit, nprobe } = params;
@@ -197,8 +199,22 @@ export default function Search() {
             console.log("Decrease speed");
           }
           return;
-        case 13: // Shift+Enter - Submit selected frame
-          if (e.shiftKey && !isInInput) {
+        case 13: // Enter key
+          if (e.ctrlKey && e.shiftKey && !isInInput) {
+            // Ctrl+Shift+Enter - Share selected frame
+            e.preventDefault();
+            const selectedFrames = getSelectedForSubmit();
+            if (selectedFrames.length > 0) {
+              const firstFrame = selectedFrames[0];
+              const [videoId, frameId] = firstFrame.split('#');
+              const frame = frames.find(f => f.video_id === videoId);
+              if (frame) {
+                shareFrame(videoId, frameId, frame.frame_counter);
+                console.log("[FrameShare] Shared frame:", videoId, frameId);
+              }
+            }
+          } else if (e.shiftKey && !isInInput) {
+            // Shift+Enter - Submit selected frame
             e.preventDefault();
             triggerSubmit();
           }

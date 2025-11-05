@@ -1,5 +1,5 @@
 import { useFetcher, Form } from "react-router-dom";
-import {useState, useEffect, useContext} from "react";
+import {useState, useEffect, useContext, useCallback} from "react";
 import JSZip from "jszip";
 
 import { usePlayVideo } from "../VideoPlayer.jsx";
@@ -12,6 +12,8 @@ import SelectedFramesPreview from "./SelectedFramesPreview.jsx";
 import AnswerItem from "./AnswerItem.jsx";
 import AnswerDetail from "./AnswerDetail.jsx";
 import { AuthContext } from "../AuthProvider.jsx";
+import { useAnswerSSE } from "../../hooks/useAnswerSSE.js";
+import { useFrameShare } from "../FrameShareProvider.jsx";
 
 export default function AnswerSidebar() {
     const { submitAnswer, shouldReload } = useContext(AuthContext);
@@ -22,6 +24,7 @@ export default function AnswerSidebar() {
     const [downloadList, setDownloadList] = useState([]);
     const playVideo = usePlayVideo();
     const [lastDataLength, setLastDataLength] = useState(0);
+    const { addNotification } = useFrameShare();
 
     useEffect(() => {
         if (fetcher.state === "idle" && !fetcher.data) {
@@ -46,6 +49,24 @@ export default function AnswerSidebar() {
             }, 200);
         }
     }, [shouldReload]);
+
+    // Handle SSE updates from cross-device synchronization
+    const handleSSEUpdate = useCallback((message) => {
+        console.log('[AnswerSidebar] SSE update:', message.type);
+
+        if (message.type === 'answer_submitted') {
+            // Reload answer list on answer submission
+            if (fetcher.state === "idle") {
+                fetcher.load("/answers");
+            }
+        } else if (message.type === 'frame_share') {
+            // Show notification for frame share
+            addNotification(message.data);
+        }
+    }, [fetcher, addNotification]);
+
+    // Connect to SSE for real-time sync
+    useAnswerSSE(handleSSEUpdate);
 
     const handleOnSelect = (answer) => {
         setSelected(answer);

@@ -7,6 +7,9 @@ import {
 } from "../services/auth.js";
 import localforage from "localforage";
 import { useToast } from "./Toast.jsx";
+import axios from "axios";
+
+const PORT = import.meta.env.VITE_PORT || 6900;
 
 export const AuthContext = createContext({
   username: "",
@@ -108,6 +111,20 @@ export default function AuthProvider({ children }) {
         { correct: 0 + (res.data?.["submission"] === "CORRECT"), ...answer },
         { method: "POST", action: "/answers" },
       );
+
+      // Broadcast to other devices via SSE
+      try {
+        await axios.post(`http://127.0.0.1:${PORT}/api/broadcast/answer-submitted`, {
+          query_id: answer.query_id,
+          video_id: answer.video_id,
+          frame_id: answer.frame_id,
+          status: res.status,
+          correct: res.data?.["submission"] === "CORRECT"
+        });
+      } catch (err) {
+        // Ignore broadcast errors (fire-and-forget)
+        console.warn('Failed to broadcast:', err);
+      }
 
       setShouldReload(prev => prev + 1);
     }
