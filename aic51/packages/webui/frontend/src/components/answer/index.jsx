@@ -56,11 +56,16 @@ export default function AnswerSidebar() {
 
         if (message.type === 'answer_submitted') {
             // Reload answer list on answer submission
+            console.log('[AnswerSidebar] Reloading answers due to submission');
             if (fetcher.state === "idle") {
                 fetcher.load("/answers");
             }
+            // Show notification for answer submission
+            console.log('[AnswerSidebar] Adding answer submission notification:', message.data);
+            addNotification(message.data);
         } else if (message.type === 'frame_share') {
             // Show notification for frame share
+            console.log('[AnswerSidebar] Adding frame share notification:', message.data);
             addNotification(message.data);
         }
     }, [fetcher, addNotification]);

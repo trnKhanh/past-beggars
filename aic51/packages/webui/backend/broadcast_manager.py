@@ -32,12 +32,15 @@ class BroadcastManager:
     async def broadcast_to_peers(self, event_type: str, data: dict):
         """Broadcast event to all peer backends"""
         if not self.peer_urls:
+            logger.info("[Broadcast] No peers configured, skipping peer broadcast")
             return  # No peers, nothing to broadcast
 
         message = {
             "type": event_type,
             "data": data
         }
+
+        logger.info(f"[Broadcast] Broadcasting {event_type} to {len(self.peer_urls)} peers: {self.peer_urls}")
 
         # Broadcast to all peers concurrently (fire-and-forget)
         tasks = []
@@ -58,9 +61,11 @@ class BroadcastManager:
         """Send message to a single peer"""
         try:
             endpoint = f"{peer_url}/api/events/receive"
-            await self.http_client.post(endpoint, json=message)
-            logger.debug(f"Broadcasted to {peer_url}")
+            logger.info(f"[Broadcast] Sending to {endpoint}")
+            response = await self.http_client.post(endpoint, json=message)
+            logger.info(f"[Broadcast] Success: {peer_url} returned {response.status_code}")
         except Exception as e:
+            logger.error(f"[Broadcast] Failed to reach {peer_url}: {e}")
             raise Exception(f"Failed to reach {peer_url}: {e}")
 
 

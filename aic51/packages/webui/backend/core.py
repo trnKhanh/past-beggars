@@ -288,8 +288,13 @@ async def receive_event(request: Request):
     event_type = event.get("type")
     data = event.get("data")
 
+    logger.info(f"[SSE] Received event from peer: type={event_type}")
+    logger.info(f"[SSE] Connected clients: {sse_manager.get_connection_count()}")
+
     # Forward to local SSE clients
     await sse_manager.broadcast(event_type=event_type, data=data)
+
+    logger.info(f"[SSE] Event broadcasted to local clients")
 
     return {"status": "received"}
 
@@ -344,9 +349,8 @@ async def answer_updates(request: Request):
 @app.post("/api/broadcast/answer-submitted")
 async def broadcast_answer_submitted(request: Request):
     """
-    Broadcast answer submission to:
-    1. Local SSE clients (this device's frontend)
-    2. Peer backends (other devices)
+    Broadcast answer submission to peer backends (other devices).
+    Local device uses Toast notifications instead.
     """
     event = await request.json()
     event_data = {
@@ -358,13 +362,10 @@ async def broadcast_answer_submitted(request: Request):
         "timestamp": datetime.now().isoformat()
     }
 
-    # 1. Broadcast to local SSE clients
-    await sse_manager.broadcast(
-        event_type="answer_submitted",
-        data=event_data
-    )
+    logger.info(f"[Broadcast] Answer submitted received, broadcasting to {len(broadcast_manager.peer_urls)} peers")
 
-    # 2. Broadcast to peer backends (fire-and-forget)
+    # Broadcast to peer backends only (fire-and-forget)
+    # Local device already shows Toast notification
     await broadcast_manager.broadcast_to_peers(
         event_type="answer_submitted",
         data=event_data

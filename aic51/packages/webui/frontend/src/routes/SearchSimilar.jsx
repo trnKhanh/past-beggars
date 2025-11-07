@@ -12,6 +12,7 @@ import { FrameItem, FrameContainer } from "../components/Frame.jsx";
 import { getTimelineColor } from "../utils/timelineColors.js";
 import { usePlayVideo } from "../components/VideoPlayer.jsx";
 import { useSelected } from "../components/SelectedProvider.jsx";
+import { useFrameShare } from "../components/FrameShareProvider.jsx";
 import PreviousButton from "../assets/previous-btn.svg";
 import NextButton from "../assets/next-btn.svg";
 import HomeButton from "../assets/home-btn.svg";
@@ -75,6 +76,7 @@ export default function SearchSimilar() {
   const { query, params, offset, data } = useLoaderData();
   const playVideo = usePlayVideo();
   const { clearSelected } = useSelected();
+  const { shareFrame } = useFrameShare();
 
   const { id } = query;
   const { limit, nprobe } = params;
@@ -129,6 +131,11 @@ export default function SearchSimilar() {
       },
       { action: "/search" },
     );
+  };
+
+  const handleOnShareFrame = (frame) => {
+    shareFrame(frame.video_id, frame.frame_id, frame.frame_counter);
+    console.log("[FrameShare] Shared frame:", frame.video_id, frame.frame_id);
   };
 
   const handleClearSelected = () => {
@@ -209,6 +216,9 @@ export default function SearchSimilar() {
                 }}
                 onSearchNearby={() => {
                   handleOnSearchNearby(frame);
+                }}
+                onShareFrame={() => {
+                  handleOnShareFrame(frame);
                 }}
               />
             ))}

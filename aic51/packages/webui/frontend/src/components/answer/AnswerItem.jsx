@@ -168,9 +168,9 @@ export default function AnswerItem({
                 "w-full flex flex-row justify-between items-center py-2 px-2",
                 {
                       "bg-green-200": answer.correct,
-                      "bg-yellow-200": !answer.correct,
+                      "bg-red-200": !answer.correct,
                       "bg-green-300 font-bold": selected && answer.correct,
-                      "bg-yellow-300 font-bold": selected && !answer.correct,
+                      "bg-red-300 font-bold": selected && !answer.correct,
                       "border-3 border-blue-500": inList && !selected,
                     // "bg-violet-200 hover:bg-violet-300": inList,
                     // "bg-blue-200 font-bold": !inList && selected,

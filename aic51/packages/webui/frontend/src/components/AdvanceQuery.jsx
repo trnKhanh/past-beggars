@@ -81,7 +81,7 @@ export function TemporalQueryContainer({
       q = q.replace(match[0], "");
     }
     
-    return { text: q.trim(), ocrs, speeches };
+    return { text: q, ocrs, speeches };
   };
   
   const buildQuery = (text, ocrs, speeches) => {

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import FrameShareNotification from "./FrameShareNotification.jsx";
+import AnswerSubmitNotification from "./AnswerSubmitNotification.jsx";
 import { usePlayVideo } from "./VideoPlayer.jsx";
 import { getFrameInfo } from "../services/search.js";
 import axios from "axios";
@@ -33,8 +34,8 @@ export default function FrameShareProvider({ children }) {
         }
     }, []);
 
-    const addNotification = useCallback((frameShare) => {
-        setNotifications((prev) => [...prev, { ...frameShare, id: Date.now() }]);
+    const addNotification = useCallback((data) => {
+        setNotifications((prev) => [...prev, { ...data, id: Date.now() }]);
     }, []);
 
     const removeNotification = useCallback((id) => {
@@ -56,15 +57,31 @@ export default function FrameShareProvider({ children }) {
     return (
         <FrameShareContext.Provider value={{ shareFrame, addNotification }}>
             {children}
-            <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
-                {notifications.map((notification) => (
-                    <FrameShareNotification
-                        key={notification.id}
-                        frameShare={notification}
-                        onPlay={handlePlayFrame}
-                        onDismiss={() => removeNotification(notification.id)}
-                    />
-                ))}
+            <div className="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-2">
+                {notifications.map((notification) => {
+                    // Check if it's a frame share or answer submission
+                    if (notification.frame_id && notification.video_id && !notification.query_id) {
+                        // Frame share notification
+                        return (
+                            <FrameShareNotification
+                                key={notification.id}
+                                frameShare={notification}
+                                onPlay={handlePlayFrame}
+                                onDismiss={() => removeNotification(notification.id)}
+                            />
+                        );
+                    } else if (notification.query_id) {
+                        // Answer submission notification
+                        return (
+                            <AnswerSubmitNotification
+                                key={notification.id}
+                                answerData={notification}
+                                onDismiss={() => removeNotification(notification.id)}
+                            />
+                        );
+                    }
+                    return null;
+                })}
             </div>
         </FrameShareContext.Provider>
     );

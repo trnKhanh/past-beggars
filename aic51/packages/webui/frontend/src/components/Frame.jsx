@@ -3,6 +3,7 @@ import classNames from "classnames";
 import PlayButton from "../assets/play-btn.svg";
 import SearchButton from "../assets/search-btn.svg";
 import NextButton from "../assets/next-btn.svg";
+import ShareButton from "../assets/upload-btn.svg";
 import { useSelected } from "./SelectedProvider.jsx";
 
 export function FrameItem({
@@ -14,6 +15,7 @@ export function FrameItem({
   onPlay,
   onSearchSimilar,
   onSearchNearby,
+  onShareFrame,
 }) {
   const { selected, addSelected, removeSelected } = useSelected();
   const isSelected = selected.includes(id);
@@ -69,6 +71,16 @@ export function FrameItem({
           draggable="false"
           title="Search nearby keyframes"
         />
+        {onShareFrame && (
+          <img
+            onClick={onShareFrame}
+            className="hover:bg-gray-200 active:bg-gray-300"
+            width="25em"
+            src={ShareButton}
+            draggable="false"
+            title="Share frame with other devices"
+          />
+        )}
       </div>
     </div>
   );

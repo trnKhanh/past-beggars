@@ -6,14 +6,24 @@ export function useAnswerSSE(onUpdate) {
     const eventSourceRef = useRef(null);
     const reconnectTimeoutRef = useRef(null);
     const reconnectAttempts = useRef(0);
+    const onUpdateRef = useRef(onUpdate);
     const MAX_RECONNECT_ATTEMPTS = 5;
     const RECONNECT_DELAY = 3000; // 3 seconds
 
+    console.log('[SSE] useAnswerSSE hook initialized');
+
+    // Keep the callback ref updated without triggering reconnects
+    useEffect(() => {
+        onUpdateRef.current = onUpdate;
+    }, [onUpdate]);
+
     const connect = useCallback(() => {
-        const eventSource = new EventSource(`http://127.0.0.1:${PORT}/api/answer-updates`);
+        const url = `http://127.0.0.1:${PORT}/api/answer-updates`;
+        console.log('[SSE] Attempting to connect to:', url);
+        const eventSource = new EventSource(url);
 
         eventSource.onopen = () => {
-            console.log('[SSE] Connected to answer updates');
+            console.log('[SSE] Successfully connected to answer updates');
             reconnectAttempts.current = 0;
         };
 
@@ -22,7 +32,7 @@ export function useAnswerSSE(onUpdate) {
             try {
                 const data = JSON.parse(event.data);
                 console.log('[SSE] Answer submitted:', data);
-                onUpdate({ type: 'answer_submitted', data });
+                onUpdateRef.current({ type: 'answer_submitted', data });
             } catch (err) {
                 console.error('[SSE] Parse error:', err);
             }
@@ -33,7 +43,7 @@ export function useAnswerSSE(onUpdate) {
             try {
                 const data = JSON.parse(event.data);
                 console.log('[SSE] Frame shared:', data);
-                onUpdate({ type: 'frame_share', data });
+                onUpdateRef.current({ type: 'frame_share', data });
             } catch (err) {
                 console.error('[SSE] Parse error:', err);
             }
@@ -49,14 +59,17 @@ export function useAnswerSSE(onUpdate) {
             try {
                 const data = JSON.parse(event.data);
                 console.log('[SSE] Message:', data);
-                onUpdate(data);
+                onUpdateRef.current(data);
             } catch (err) {
                 console.error('[SSE] Parse error:', err);
             }
         };
 
         eventSource.onerror = (error) => {
-            console.error('[SSE] Error:', error);
+            console.error('[SSE] Error occurred:', error);
+            console.error('[SSE] ReadyState:', eventSource.readyState,
+                eventSource.readyState === EventSource.CONNECTING ? '(CONNECTING)' :
+                eventSource.readyState === EventSource.OPEN ? '(OPEN)' : '(CLOSED)');
 
             // EventSource automatically reconnects, but we want to track attempts
             if (eventSource.readyState === EventSource.CLOSED) {
@@ -78,13 +91,15 @@ export function useAnswerSSE(onUpdate) {
         };
 
         eventSourceRef.current = eventSource;
-    }, [onUpdate]);
+    }, []); // No dependencies - connect function never changes
 
     useEffect(() => {
+        console.log('[SSE] useEffect running - about to connect');
         connect();
 
         return () => {
             // Cleanup on unmount
+            console.log('[SSE] useEffect cleanup - closing connection');
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
             }

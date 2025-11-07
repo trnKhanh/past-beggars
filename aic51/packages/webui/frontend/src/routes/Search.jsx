@@ -279,6 +279,11 @@ export default function Search() {
     );
   };
 
+  const handleOnShareFrame = (frame, keyframe) => {
+    shareFrame(frame.video_id, keyframe, frame.frame_counter);
+    console.log("[FrameShare] Shared frame:", frame.video_id, keyframe);
+  };
+
   const handleSubmitSelected = () => {
     const selectedFrameId = getSelectedForSubmit();
     if (selectedFrameId) {
@@ -454,6 +459,9 @@ export default function Search() {
                         }}
                         onSearchNearby={() => {
                           handleOnSearchNearby(frame, keyframe);
+                        }}
+                        onShareFrame={() => {
+                          handleOnShareFrame(frame, keyframe);
                         }}
                       />
                     );

@@ -10,10 +10,17 @@ export default function AnswerForm() {
 
     useEffect(() => {
         if (selected.length > 0) {
-            const selectedFramesText = selected.map(frameId => {
-                const [, fc] = frameId.split('#');
-                return fc;
-            }).join(", ");
+            const selectedFramesText = selected
+                .map(frameId => {
+                    const [, fc] = frameId.split('#');
+                    return fc;
+                })
+                .sort((a, b) => {
+                    const numA = parseInt(a, 10);
+                    const numB = parseInt(b, 10);
+                    return numA - numB;
+                })
+                .join(", ");
             const vid = selected[0].split('#')[0];
 
             updateFormValue('videoId', vid);
@@ -48,15 +55,7 @@ export default function AnswerForm() {
             return;
         }
 
-        let frameCounters;
-        if (selected.length <= 1) {
-            frameCounters = formData.get('frame_counter');
-        } else {
-            frameCounters = selected.map(frameId => {
-                const [, fc] = frameId.split('#');
-                return fc;
-            }).join(', ');
-        }
+        const frameCounters = formData.get('frame_counter');
 
         const frameId = selected.length > 0 ? selected[0].split('#')[1] : null;
 
