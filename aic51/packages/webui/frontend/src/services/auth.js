@@ -30,6 +30,10 @@ export async function getEvaluationIdAPI(sessionId) {
   }
 }
 
+function compareNumbers(a, b) {
+    return a - b;
+}
+
 export async function submitAnswerAPI(sessionId, answer) {
   try {
     let answerType = "kis"; // Default to KIS
@@ -44,6 +48,8 @@ export async function submitAnswerAPI(sessionId, answer) {
     } else if (answer.frame_counter) {
         frameCounters = [String(answer.frame_counter).trim()];
     }
+    frameCounters.sort(compareNumbers)
+    console.log(frameCounters)
 
     if (frameCounters.length === 0) {
         return { status: 400, data: { description: "Error: No frame counters provided" } };

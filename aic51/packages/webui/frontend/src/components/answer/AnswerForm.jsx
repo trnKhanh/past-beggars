@@ -49,14 +49,7 @@ export default function AnswerForm() {
         }
 
         let frameCounters;
-        if (selected.length <= 1) {
-            frameCounters = formData.get('frame_counter');
-        } else {
-            frameCounters = selected.map(frameId => {
-                const [, fc] = frameId.split('#');
-                return fc;
-            }).join(', ');
-        }
+        frameCounters = formData.get('frame_counter');
 
         const frameId = selected.length > 0 ? selected[0].split('#')[1] : null;
 
